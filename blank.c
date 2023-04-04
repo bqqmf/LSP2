@@ -14,6 +14,7 @@ char datatype[DATATYPE_SIZE][MINLEN] = {"int", "char", "double", "float", "long"
 			, "rlim_t", "jmp_buf", "sig_atomic_t", "clock_t", "struct"};
 
 
+// operator rank
 operator_precedence operators[OPERATOR_CNT] = {
 	{"(", 0}, {")", 0}
 	,{"->", 1}	
@@ -39,18 +40,23 @@ void compare_tree(node *root1,  node *root2, int *result)
 		return;
 	}
 
+	/* when root1's name is < or > or <= or >= */
 	if(!strcmp(root1->name, "<") || !strcmp(root1->name, ">") || !strcmp(root1->name, "<=") || !strcmp(root1->name, ">=")){
+		// when root1's name and root2's name are different
 		if(strcmp(root1->name, root2->name) != 0){
-
+			// if first char is < then change to >
 			if(!strncmp(root2->name, "<", 1))
 				strncpy(root2->name, ">", 1);
 
+			// if first char is > then change to >
 			else if(!strncmp(root2->name, ">", 1))
 				strncpy(root2->name, "<", 1);
 
+			// if first char is <= then change to >=
 			else if(!strncmp(root2->name, "<=", 2))
 				strncpy(root2->name, ">=", 2);
 
+			// if first char is >= then change to <=
 			else if(!strncmp(root2->name, ">=", 2))
 				strncpy(root2->name, "<=", 2);
 
@@ -827,19 +833,28 @@ node *make_tree(node *root, char (*tokens)[MINLEN], int *idx, int parentheses)
 	return get_root(cur);
 }
 
+// change parent's first and second child
 node *change_sibling(node *parent)
 {
 	node *tmp;
 	
+	// tmp is first node among siblings
 	tmp = parent->child_head;
 
+	// change child_head from first child to second child
 	parent->child_head = parent->child_head->next;
+	// set parent to new child_head
 	parent->child_head->parent = parent;
+	// delete new child_head's prev node
 	parent->child_head->prev = NULL;
 
+	// set old_child_head to new_child_head's next
 	parent->child_head->next = tmp;
+	// set old_child's prev to new_child_head
 	parent->child_head->next->prev = parent->child_head;
+	// delete old_child_head's next
 	parent->child_head->next->next = NULL;
+	// delete old_child head's parent
 	parent->child_head->next->parent = NULL;		
 
 	return parent;

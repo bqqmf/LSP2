@@ -1,3 +1,15 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <time.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <signal.h>
+
+#include "blank.h"
+#include "ssu_score.h"
 //add header files
 
 extern struct ssu_scoreTable score_table[QNUM];
@@ -19,22 +31,27 @@ int iOption = false;
 
 void ssu_score(int argc, char *argv[])
 {
-	char saved_path[BUFLEN];
+	char saved_path[BUFLEN];  // current_working_dir path
 	int i;
 
+	// when using -h option, print usage
 	for(i = 0; i < argc; i++){
-		if(!strcmp(argv[i], "-h")){
+		if(!strcmp(argv[i], "-h")){  
 			print_usage();
 			return;
 		}
 	}
 
-	memset(saved_path, 0, BUFLEN);
-	if(argc >= 3 && strcmp(argv[1], "-i") != 0){
-		strcpy(stuDir, argv[1]);
-		strcpy(ansDir, argv[2]);
+	// initialize array 0
+	memset(saved_path, 0, BUFLEN);  
+
+	// when execute ssu_score student_dir answer_dir
+	if(argc >= 3 && strcmp(argv[1], "-i") != 0){  
+		strcpy(stuDir, argv[1]);  // save student_dir path
+		strcpy(ansDir, argv[2]);  // save answer_dir path
 	}
 
+	// using strange option, exit
 	if(!check_option(argc, argv))
 		exit(1);
 
@@ -44,21 +61,29 @@ void ssu_score(int argc, char *argv[])
 		return;
 	}
 
+	// save current working dir path in saved_path
 	getcwd(saved_path, BUFLEN);
 
+	// check stuDir exists
 	if(chdir(stuDir) < 0){
 		fprintf(stderr, "%s doesn't exist\n", stuDir);
 		return;
 	}
+	// if stuDir not exists, cwd will student_dir path
 	getcwd(stuDir, BUFLEN);
 
+	// cd to dir where execute ./ssu_score
 	chdir(saved_path);
+
+	// check ansDir exitst
 	if(chdir(ansDir) < 0){
 		fprintf(stderr, "%s doesn't exist\n", ansDir);
 		return;
 	}
+	// if ansDir not exists, cwd will ansDir path
 	getcwd(ansDir, BUFLEN);
 
+	// cd to dir where execute ./ssu_score
 	chdir(saved_path);
 
 	set_scoreTable(ansDir);
@@ -158,7 +183,7 @@ void do_iOption(char (*ids)[FILELEN])
 	i = 0;
 	fscanf(fp, "%s\n", tmp);
 	strcpy(qname[i++], strtok(tmp, ","));
-	
+
 	while((p = strtok(NULL, ",")) != NULL)
 		strcpy(qname[i++], p);
 
@@ -298,6 +323,7 @@ void make_scoreTable(char *ansDir)
 	int idx = 0;
 	int i;
 
+	// num expected 1 or 2
 	num = get_create_type();
 
 	if(num == 1)
@@ -405,11 +431,14 @@ void set_idTable(char *stuDir)
 	sort_idTable(num);
 }
 
-void sort_idTable(int size)
+/* sort table by SCHOOL_ID */
+/* size : num of students  */
+void sort_idTable(int size)  
 {
 	int i, j;
-	char tmp[10];
+	char tmp[10];  // save SCHOOL_ID temp
 
+	// bubble sort by SCHOOL_ID ASC
 	for(i = 0; i < size - 1; i++){
 		for(j = 0; j < size - 1 -i; j++){
 			if(strcmp(id_table[j], id_table[j+1]) > 0){
@@ -421,6 +450,8 @@ void sort_idTable(int size)
 	}
 }
 
+/* sort table by score    */
+/* size : num of students */
 void sort_scoreTable(int size)
 {
 	int i, j;
@@ -444,6 +475,7 @@ void sort_scoreTable(int size)
 	}
 }
 
+/* save qname's score in num1, num2*/
 void get_qname_number(char *qname, int *num1, int *num2)
 {
 	char *p;
@@ -451,7 +483,7 @@ void get_qname_number(char *qname, int *num1, int *num2)
 
 	strncpy(dup, qname, strlen(qname));
 	*num1 = atoi(strtok(dup, "-."));
-	
+
 	p = strtok(NULL, "-.");
 	if(p == NULL)
 		*num2 = 0;
@@ -532,7 +564,7 @@ double score_student(int fd, char *id)
 		{
 			if((type = get_file_type(score_table[i].qname)) < 0)
 				continue;
-			
+
 			if(type == TEXTFILE)
 				result = score_blank(id, score_table[i].qname);
 			else if(type == CFILE)
@@ -573,7 +605,7 @@ void write_first_row(int fd)
 	for(i = 0; i < size; i++){
 		if(score_table[i].score == 0)
 			break;
-		
+
 		sprintf(tmp, "%s,", score_table[i].qname);
 		write(fd, tmp, strlen(tmp));
 	}
@@ -590,7 +622,7 @@ char *get_answer(int fd, char *result)
 	{
 		if(c == ':')
 			break;
-		
+
 		result[idx++] = c;
 	}
 	if(result[strlen(result) - 1] == '\n')
@@ -694,7 +726,7 @@ int score_blank(char *id, char *filename)
 
 		}
 	}
-	
+
 	close(fd_std);
 	close(fd_ans);
 
@@ -715,7 +747,7 @@ double score_program(char *id, char *filename)
 
 	if(compile == ERROR || compile == false)
 		return false;
-	
+
 	result = execute_program(id, filename);
 
 	if(!result)
@@ -751,7 +783,7 @@ double compile_program(char *id, char *filename)
 
 	memset(qname, 0, sizeof(qname));
 	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));
-	
+
 	isthread = is_thread(qname);
 
 	sprintf(tmp_f, "%s/%s", ansDir, filename);
@@ -859,7 +891,7 @@ int execute_program(char *id, char *filename)
 
 	start = time(NULL);
 	redirection(tmp, fd, STDOUT);
-	
+
 	sprintf(tmp, "%s.stdexe", qname);
 	while((pid = inBackground(tmp)) > 0){
 		end = time(NULL);
@@ -883,7 +915,7 @@ pid_t inBackground(char *name)
 	char tmp[64];
 	int fd;
 	off_t size;
-	
+
 	memset(tmp, 0, sizeof(tmp));
 	fd = open("background.txt", O_RDWR | O_CREAT | O_TRUNC, 0666);
 
@@ -929,7 +961,7 @@ int compare_resultfile(char *file1, char *file2)
 			else 
 				break;
 		}
-		
+
 		if(len1 == 0 && len2 == 0)
 			break;
 
@@ -977,8 +1009,9 @@ void rmdirs(const char *path)
 	struct dirent *dirp;
 	struct stat statbuf;
 	DIR *dp;
-	char tmp[50];
-	
+	//char tmp[50]; 
+	char tmp[4096];  // path max length = 4096
+
 	if((dp = opendir(path)) == NULL)
 		return;
 

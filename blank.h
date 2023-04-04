@@ -16,18 +16,20 @@
 #define MINLEN 64
 #define TOKEN_CNT 50
 
+/* only child_head can access parent node */
+/* LCRS tree by double linked list        */
 typedef struct node{
-	int parentheses;
-	char *name;
-	struct node *parent;
-	struct node *child_head;
-	struct node *prev;
-	struct node *next;
+	int parentheses;		  /* maybe ( ) flag?    */
+	char *name;				  /* node's name		*/
+	struct node *parent;      /* point parent node  */
+	struct node *child_head;  /* point child's head */
+	struct node *prev;		  /* point prev node    */
+	struct node *next;		  /* point next node	*/
 }node;
 
 typedef struct operator_precedence{
-	char *operator;
-	int precedence;
+	char *operator;  /* operator		      */
+	int precedence;  /* operator's precedende */
 }operator_precedence;
 
 void compare_tree(node *root1,  node *root2, int *result);
