@@ -12,14 +12,14 @@
 #include "ssu_score.h"
 //add header files
 
-extern struct ssu_scoreTable score_table[QNUM];
-extern char id_table[SNUM][10];
+extern struct ssu_scoreTable score_table[QNUM];  // 다른 파일에서 score_table 접근 가능
+extern char id_table[SNUM][10];  				 // 다른 파일에서 id_table 접근 가능
 
-struct ssu_scoreTable score_table[QNUM];
+struct ssu_scoreTable score_table[QNUM];  // 100개의 ssu_scoreTable 저장
 char id_table[SNUM][10];
 
-char stuDir[BUFLEN];
-char ansDir[BUFLEN];
+char stuDir[BUFLEN];  // 학생 디렉토리 경로
+char ansDir[BUFLEN];  // 정답 디렉토리 경로
 char errorDir[BUFLEN];
 char threadFiles[ARGNUM][FILELEN];
 char iIDs[ARGNUM][FILELEN];
@@ -31,70 +31,71 @@ int iOption = false;
 
 void ssu_score(int argc, char *argv[])
 {
-	char saved_path[BUFLEN];  // current_working_dir path
-	int i;
+	char saved_path[BUFLEN];  // 현재 작업 디렉토리 저장
+	int i;					  // for을 위한 인덱스
 
-	// when using -h option, print usage
-	for(i = 0; i < argc; i++){
-		if(!strcmp(argv[i], "-h")){  
+	
+	for(i = 0; i < argc; i++){  	 // 인자들 검사
+		if(!strcmp(argv[i], "-h")){  // -h 옵션 사용시 usage 출력
 			print_usage();
 			return;
 		}
 	}
 
-	// initialize array 0
-	memset(saved_path, 0, BUFLEN);  
+	memset(saved_path, 0, BUFLEN);  // 배열을 0으로 초기화
 
-	// when execute ssu_score student_dir answer_dir
+	// ./ssu_score student_dir answer_dir 실행 시
 	if(argc >= 3 && strcmp(argv[1], "-i") != 0){  
-		strcpy(stuDir, argv[1]);  // save student_dir path
-		strcpy(ansDir, argv[2]);  // save answer_dir path
+		strcpy(stuDir, argv[1]);  // 학생 디렉토리 상대 경로 저장
+		strcpy(ansDir, argv[2]);  // 정답 디렉토리 상대 경로 저장
 	}
 
-	// using strange option, exit
+	// 이상한 옵션 예외 처리
 	if(!check_option(argc, argv))
 		exit(1);
 
+	// m, e, t 옵션 말고 i 옵션만 사용하고 학생, 정답 디렉토리가 입력된 경우
 	if(!mOption && !eOption && !tOption && iOption 
 			&& !strcmp(stuDir, "") && !strcmp(ansDir, "")){
-		do_iOption(iIDs);
+		do_iOption(iIDs);  // i 옵션 실행하고 종료
 		return;
 	}
 
-	// save current working dir path in saved_path
-	getcwd(saved_path, BUFLEN);
+	getcwd(saved_path, BUFLEN);  // saved_path에 현재 작업 디렉토리 저장
 
-	// check stuDir exists
+	// 학생 디렉토리로 디렉토리 변경
 	if(chdir(stuDir) < 0){
-		fprintf(stderr, "%s doesn't exist\n", stuDir);
+		fprintf(stderr, "%s doesn't exist\n", stuDir);  // stuDir이 존재하지 않는다면 에러 출력 후 종료
 		return;
 	}
-	// if stuDir not exists, cwd will student_dir path
+	// stuDir에 학생 디렉토리의 절대 경로 저장? gdb로 실행해보면서 봐야겠다.
 	getcwd(stuDir, BUFLEN);
 
-	// cd to dir where execute ./ssu_score
+	// ./ssu_score를 실행한 디렉토리로 다시 돌아오기
 	chdir(saved_path);
 
-	// check ansDir exitst
+	// 정답 디렉토리로 디렉토리 변경
 	if(chdir(ansDir) < 0){
-		fprintf(stderr, "%s doesn't exist\n", ansDir);
+		fprintf(stderr, "%s doesn't exist\n", ansDir);  // ansDir이 존재하지 않는다면 에러 출력 후 종료
 		return;
 	}
-	// if ansDir not exists, cwd will ansDir path
+	// ansDir에 정답 디렉토리의 절대 경로 저장? gdb로 실행해보기.
 	getcwd(ansDir, BUFLEN);
 
-	// cd to dir where execute ./ssu_score
+	// ./ssu_score를 실행한 디렉토리로 다시 돌아오기
 	chdir(saved_path);
 
-	set_scoreTable(ansDir);
-	set_idTable(stuDir);
+	set_scoreTable(ansDir);  // score_table.csv를 읽어 구조체 배열 score_table에 저장
+	set_idTable(stuDir);	 // id 테이블 생성
 
+	// -m 입력 시 수행
 	if(mOption)
 		do_mOption();
 
 	printf("grading student's test papers..\n");
-	score_students();
+	score_students();  // 학생들 점수 매기기
 
+	// -i 입력 시 수행
 	if(iOption)
 		do_iOption(iIDs);
 
@@ -278,84 +279,90 @@ int is_exist(char (*src)[FILELEN], char *target)
 	return false;
 }
 
+// main에서 stuDir, ansDir 경로 저장 후 처음 호출되는 함수
 void set_scoreTable(char *ansDir)
 {
-	char filename[FILELEN];
+	char filename[FILELEN];  // score_table.csv 경로 저장, 128 바이트
 
-	sprintf(filename, "./%s", "score_table.csv");
+	sprintf(filename, "./%s", "score_table.csv");  // ssu_score이 있는 디렉토리의 score_table.csv 경로 저장
 
-	// check exist
-	if(access(filename, F_OK) == 0)
-		read_scoreTable(filename);
-	else{
-		make_scoreTable(ansDir);
-		write_scoreTable(filename);
+	if(access(filename, F_OK) == 0)  // score_table.csv 가 존재한다면
+		read_scoreTable(filename);   // score_table.csv 읽기
+	else{							 // score_table.csv 가 존재하지 않는다면
+		make_scoreTable(ansDir);     // score_table.csv 생성
+		write_scoreTable(filename);  // 생성한 테이블에 값 쓰기
 	}
 }
 
+/* score_table.csv가 존재 시 호출 */
+/* 문제와 점수를 읽어 구조체 배열  */
+/* score_table에 저장한다		  */
+/* path : score_table의 경로	 */
 void read_scoreTable(char *path)
 {
-	FILE *fp;
-	char qname[FILELEN];
-	char score[BUFLEN];
-	int idx = 0;
+	FILE *fp;			  // score_table.csv를 가리키는 파일 포인터
+	char qname[FILELEN];  // 임시로 문제의 이름을 담는 배열. 128 바이트
+	char score[BUFLEN];   // 임시로 점수를 담는 배열. 1024 바이트
+	int idx = 0;		  // 구조체 배열 score_table의 idx번째 요소 저장 시 사용
 
-	if((fp = fopen(path, "r")) == NULL){
-		fprintf(stderr, "file open error for %s\n", path);
+	if((fp = fopen(path, "r")) == NULL){  					// score_table.csv 파일을 읽기 모드로 열기
+		fprintf(stderr, "file open error for %s\n", path);  // 열리지 않는다면 에러 처리 후 종료
 		return ;
 	}
 
-	while(fscanf(fp, "%[^,],%s\n", qname, score) != EOF){
-		strcpy(score_table[idx].qname, qname);
-		score_table[idx++].score = atof(score);
+	while(fscanf(fp, "%[^,],%s\n", qname, score) != EOF){  // ,를 기준으로 qname과 score 저장
+		strcpy(score_table[idx].qname, qname);			   // 문제 이름 저장
+		score_table[idx++].score = atof(score);			   // 점수 저장
 	}
 
-	fclose(fp);
+	fclose(fp);  // 파일 닫기
 }
 
-void make_scoreTable(char *ansDir)
+/* score_table.csv가 존재하지 않을 경우 호출 */
+/* ansDir : 정답 디렉토리 경로 */
+void make_scoreTable(char *ansDir)  // 정답 디렉토리로부터 읽어서 csv를 만드나?
 {
-	int type, num;
-	double score, bscore, pscore;
+	int type, num;  // type : 파일의 종류 저장(TEXTFILE(3) or CFILE(4) or -1), num : 문제 배점 방식(1 or 2)
+	double score, bscore, pscore;  // bscore : 빈칸 문제 배점, pscore : 프로그램 문제 배점
 	struct dirent *dirp, *c_dirp;
-	DIR *dp, *c_dp;
+	DIR *dp, *c_dp;  // dp : 디렉토리를 가리키는 포인터
 	char *tmp;
-	int idx = 0;
+	int idx = 0;  // score_table에 정답 파일 이름 저장시 사용. 정답 파일 개수
 	int i;
 
-	// num expected 1 or 2
-	num = get_create_type();
+	num = get_create_type();  // 문제별 점수 설정 방식 고르기
 
-	if(num == 1)
+	if(num == 1)  // 빈칸 채우기 문제와 프로그램 문제, 두 종류의 점수만 설정
 	{
 		printf("Input value of blank question : ");
-		scanf("%lf", &bscore);
+		scanf("%lf", &bscore);  // 빈칸 문제 점수 설정
 		printf("Input value of program question : ");
-		scanf("%lf", &pscore);
+		scanf("%lf", &pscore);  // 프로그램 문제 점수 설정
 	}
 
-	if((dp = opendir(ansDir)) == NULL){
-		fprintf(stderr, "open dir error for %s\n", ansDir);
+	if((dp = opendir(ansDir)) == NULL){  					 // 정답 디렉토리 열기
+		fprintf(stderr, "open dir error for %s\n", ansDir);  // 열리지 않는다면 에러 처리 후 종료
 		return;
 	}
 
-	while((dirp = readdir(dp)) != NULL){
+	// ansDir의 하위의 정답 파일 이름들을 score_table의 qname에 저장한다 
+	while((dirp = readdir(dp)) != NULL){  // 현재 디렉토리의 하위에 파일이 있다면
 
-		if(!strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))
+		if(!strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))  // 파일 .와 ..은 건너뛰기
 			continue;
 
-		if((type = get_file_type(dirp->d_name)) < 0)
+		if((type = get_file_type(dirp->d_name)) < 0)   // 텍스트 파일(3) or .c 파일(4)이 아니면 건너뛰기
 			continue;
 
-		strcpy(score_table[idx].qname, dirp->d_name);
+		strcpy(score_table[idx].qname, dirp->d_name);  // 구조체 배열 score_table의 qname에 정답 파일 이름 저장
 
-		idx++;
+		idx++;  // 다음 칸 가리키기
 	}
 
-	closedir(dp);
+	closedir(dp);  // 파일 포인터 닫기
 	sort_scoreTable(idx);
 
-	for(i = 0; i < idx; i++)
+	for(i = 0; i < idx; i++)  // 정답 파일 수 만큼 반복
 	{
 		type = get_file_type(score_table[i].qname);
 
@@ -450,9 +457,10 @@ void sort_idTable(int size)
 	}
 }
 
-/* sort table by score    */
-/* size : num of students */
-void sort_scoreTable(int size)
+/* score_table을 파일명 기준으로 정렬한다    */
+/* size : make_scoreTable()에서 찾은 */
+/* ansDir 하위의 정답 파일 수 idx의 값 */
+void sort_scoreTable(int size)  // 아마 1 10 2 3 이런걸 1 2 3 10 으로 정렬해주는 듯. 정답 파일 이름 구조랑 gdb로 get_qname_num 봐야 알겠다.
 {
 	int i, j;
 	struct ssu_scoreTable tmp;
@@ -476,13 +484,14 @@ void sort_scoreTable(int size)
 }
 
 /* save qname's score in num1, num2*/
+/* 정답 파일 명으로 num1과 num2에 값 저장 */
 void get_qname_number(char *qname, int *num1, int *num2)
 {
 	char *p;
-	char dup[FILELEN];
+	char dup[FILELEN];  // 정답 파일 이름 담는 배열
 
-	strncpy(dup, qname, strlen(qname));
-	*num1 = atoi(strtok(dup, "-."));
+	strncpy(dup, qname, strlen(qname));  // dup에 정답 파일 명 복사
+	*num1 = atoi(strtok(dup, "-."));  // gdb로 자세히 보기 아마 1-1, 1-2에서 뒤 숫자를 분리하나보다
 
 	p = strtok(NULL, "-.");
 	if(p == NULL)
@@ -992,16 +1001,17 @@ void redirection(char *command, int new, int old)
 	close(saved);
 }
 
+// 파일의 타입을 리턴하는 함수 
 int get_file_type(char *filename)
 {
-	char *extension = strrchr(filename, '.');
+	char *extension = strrchr(filename, '.');  // .포함 확장자를 저장
 
-	if(!strcmp(extension, ".txt"))
-		return TEXTFILE;
-	else if (!strcmp(extension, ".c"))
-		return CFILE;
-	else
-		return -1;
+	if(!strcmp(extension, ".txt"))		// 확장자가 .txt면
+		return TEXTFILE;  				// 텍스트 파일(3) 리턴
+	else if (!strcmp(extension, ".c"))  // 확장자가 .c이면
+		return CFILE;  					// .c 파일(4) 리턴
+	else  								// 텍스트 파일이나 .c 파일이 아니면
+		return -1;  					// -1 리턴
 }
 
 void rmdirs(const char *path)
