@@ -467,6 +467,7 @@ void sort_scoreTable(int size)  // 아마 1 10 2 3 이런걸 1 2 3 10 으로 정
 	int num1_1, num1_2;
 	int num2_1, num2_2;
 
+	// lets' gdb here 4/6
 	for(i = 0; i < size - 1; i++){
 		for(j = 0; j < size - 1 - i; j++){
 
