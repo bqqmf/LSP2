@@ -13,10 +13,10 @@
 //add header files
 
 extern struct ssu_scoreTable score_table[QNUM];  // 다른 파일에서 score_table 접근 가능
-extern char id_table[SNUM][10];  				 // 다른 파일에서 id_table 접근 가능
+extern char id_table[SNUM][10];                  // 다른 파일에서 id_table 접근 가능
 
-struct ssu_scoreTable score_table[QNUM];  // 100개의 ssu_scoreTable 저장
-char id_table[SNUM][10];
+struct ssu_scoreTable score_table[QNUM];         // max 100개의 question 저장
+char id_table[SNUM][10];                         // max save 100 students's STUDENT_ID
 
 char stuDir[BUFLEN];  // 학생 디렉토리 경로
 char ansDir[BUFLEN];  // 정답 디렉토리 경로
@@ -44,7 +44,7 @@ void ssu_score(int argc, char *argv[])
 
 	memset(saved_path, 0, BUFLEN);  // 배열을 0으로 초기화
 
-	// ./ssu_score student_dir answer_dir 실행 시
+	// without -i option, ./ssu_score student_dir answer_dir 실행 시
 	if(argc >= 3 && strcmp(argv[1], "-i") != 0){  
 		strcpy(stuDir, argv[1]);  // 학생 디렉토리 상대 경로 저장
 		strcpy(ansDir, argv[2]);  // 정답 디렉토리 상대 경로 저장
@@ -68,7 +68,7 @@ void ssu_score(int argc, char *argv[])
 		fprintf(stderr, "%s doesn't exist\n", stuDir);  // stuDir이 존재하지 않는다면 에러 출력 후 종료
 		return;
 	}
-	// stuDir에 학생 디렉토리의 절대 경로 저장? gdb로 실행해보면서 봐야겠다.
+	// stuDir에 학생 디렉토리의 절대 경로 저장
 	getcwd(stuDir, BUFLEN);
 
 	// ./ssu_score를 실행한 디렉토리로 다시 돌아오기
@@ -79,21 +79,21 @@ void ssu_score(int argc, char *argv[])
 		fprintf(stderr, "%s doesn't exist\n", ansDir);  // ansDir이 존재하지 않는다면 에러 출력 후 종료
 		return;
 	}
-	// ansDir에 정답 디렉토리의 절대 경로 저장? gdb로 실행해보기.
+	// ansDir에 정답 디렉토리의 절대 경로 저장
 	getcwd(ansDir, BUFLEN);
 
 	// ./ssu_score를 실행한 디렉토리로 다시 돌아오기
 	chdir(saved_path);
 
-	set_scoreTable(ansDir);  // score_table.csv를 읽어 구조체 배열 score_table에 저장
-	set_idTable(stuDir);	 // id 테이블 생성
+	set_scoreTable(ansDir);  // from score_table.csv to 구조체 배열 score_table에 저장
+	set_idTable(stuDir);	 // fill hakbun table from STD_DIR 생성
 
 	// -m 입력 시 수행
 	if(mOption)
 		do_mOption();
 
 	printf("grading student's test papers..\n");
-	score_students();  // 학생들 점수 매기기
+	score_students();  // 학생들 점수 매기기 and create score.csv
 
 	// -i 입력 시 수행
 	if(iOption)
@@ -289,8 +289,8 @@ void set_scoreTable(char *ansDir)
 	if(access(filename, F_OK) == 0)  // score_table.csv 가 존재한다면
 		read_scoreTable(filename);   // score_table.csv 읽기
 	else{							 // score_table.csv 가 존재하지 않는다면
-		make_scoreTable(ansDir);     // score_table.csv 생성
-		write_scoreTable(filename);  // 생성한 테이블에 값 쓰기
+		make_scoreTable(ansDir);     // fill score_table[] from ANS_DIR
+		write_scoreTable(filename);  // create score_table.csv 
 	}
 }
 
@@ -319,11 +319,12 @@ void read_scoreTable(char *path)
 }
 
 /* score_table.csv가 존재하지 않을 경우 호출 */
+/* fill score_table[] and sort from ANS_DIR */
 /* ansDir : 정답 디렉토리 경로 */
 void make_scoreTable(char *ansDir)  // 정답 디렉토리로부터 읽어서 csv를 만드나?
 {
 	int type, num;  // type : 파일의 종류 저장(TEXTFILE(3) or CFILE(4) or -1), num : 문제 배점 방식(1 or 2)
-	double score, bscore, pscore;  // bscore : 빈칸 문제 배점, pscore : 프로그램 문제 배점
+	double score, bscore, pscore;  // score : save baejum by qname,  bscore : 빈칸 문제 배점, pscore : 프로그램 문제 배점
 	struct dirent *dirp, *c_dirp;
 	DIR *dp, *c_dp;  // dp : 디렉토리를 가리키는 포인터
 	char *tmp;
@@ -360,125 +361,136 @@ void make_scoreTable(char *ansDir)  // 정답 디렉토리로부터 읽어서 cs
 	}
 
 	closedir(dp);  // 파일 포인터 닫기
-	sort_scoreTable(idx);
+	sort_scoreTable(idx);  // sort scoreTable by qname ASC
 
+	// save question's baejum by qname in score_table
 	for(i = 0; i < idx; i++)  // 정답 파일 수 만큼 반복
 	{
-		type = get_file_type(score_table[i].qname);
+		type = get_file_type(score_table[i].qname);  // save type by qname TEXTFILE(3) or CFILE(4) or -1
 
-		if(num == 1)
+		if(num == 1)  // baejum saved in b, pscore
 		{
-			if(type == TEXTFILE)
-				score = bscore;
-			else if(type == CFILE)
-				score = pscore;
+			if(type == TEXTFILE)    // .txt file ex) 1-1.txt
+				score = bscore;     // baejum save
+			else if(type == CFILE)  // .c file ex) 20.c
+				score = pscore;     // baejum save
 		}
-		else if(num == 2)
+		else if(num == 2)  // baejum are diffrent
 		{
 			printf("Input of %s: ", score_table[i].qname);
-			scanf("%lf", &score);
+			scanf("%lf", &score);  // enter qname's baejum
 		}
 
-		score_table[i].score = score;
+		score_table[i].score = score;  // save baejum in score_table's element
 	}
 }
 
+/* called after score_table is filled */
+/* create score_table.csv by score_table */
+/* filename : abs path of score_table.csv */
 void write_scoreTable(char *filename)
 {
-	int fd;
+	int fd;  // fd for score_table.csv
 	char tmp[BUFLEN];
 	int i;
-	int num = sizeof(score_table) / sizeof(score_table[0]);
+	int num = sizeof(score_table) / sizeof(score_table[0]);  // num of answer questions
 
-	if((fd = creat(filename, 0666)) < 0){
-		fprintf(stderr, "creat error for %s\n", filename);
+	if((fd = creat(filename, 0666)) < 0){  // score_table.csv create
+		fprintf(stderr, "creat error for %s\n", filename);  // catch exception
 		return;
 	}
 
-	for(i = 0; i < num; i++)
+	for(i = 0; i < num; i++)  // iter num times
 	{
-		if(score_table[i].score == 0)
+		if(score_table[i].score == 0)  // write to csv is ended
 			break;
 
+		// save qname,baejum
 		sprintf(tmp, "%s,%.2f\n", score_table[i].qname, score_table[i].score);
-		write(fd, tmp, strlen(tmp));
+		write(fd, tmp, strlen(tmp));  // write to csv
 	}
 
 	close(fd);
 }
 
-
+/* called after set_scoreTable */
+/* fill STUDENT_ID from STD_DIR */
+/* stuDir : abs path of STD_DIR */
 void set_idTable(char *stuDir)
 {
-	struct stat statbuf;
-	struct dirent *dirp;
-	DIR *dp;
-	char tmp[BUFLEN];
-	int num = 0;
+	struct stat statbuf;  // save file info
+	struct dirent *dirp;  // dir pointer
+	DIR *dp;              // pointer for STD_DIR
+	char tmp[BUFLEN];     // 1024 bytes
+	int num = 0;          // num of students in STD_DIR
 
-	if((dp = opendir(stuDir)) == NULL){
-		fprintf(stderr, "opendir error for %s\n", stuDir);
+	if((dp = opendir(stuDir)) == NULL){  // open STD_DIR directory
+		fprintf(stderr, "opendir error for %s\n", stuDir);  // catch exception
 		exit(1);
 	}
 
-	while((dirp = readdir(dp)) != NULL){
-		if(!strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))
+	while((dirp = readdir(dp)) != NULL){  // while sub file exists
+		if(!strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))  // . .. pass
 			continue;
 
-		sprintf(tmp, "%s/%s", stuDir, dirp->d_name);
+		// save sub file's abs path to tmp
+		sprintf(tmp, "%s/%s", stuDir, dirp->d_name);  
+		// get file's info
 		stat(tmp, &statbuf);
 
-		if(S_ISDIR(statbuf.st_mode))
-			strcpy(id_table[num++], dirp->d_name);
+		if(S_ISDIR(statbuf.st_mode))  // if file is dir
+			strcpy(id_table[num++], dirp->d_name);  // save STUDENT_ID in id_table from STD_DIR
 		else
-			continue;
+			continue;  // reg file pass
 	}
-	closedir(dp);
+	closedir(dp);  // close dir
 
-	sort_idTable(num);
+	sort_idTable(num);  // sort idTable by STUDENT_ID
 }
 
-/* sort table by SCHOOL_ID */
+/* sort idTable by SCHOOL_ID */
 /* size : num of students  */
 void sort_idTable(int size)  
 {
-	int i, j;
+	int i, j;  // index for sort
 	char tmp[10];  // save SCHOOL_ID temp
 
 	// bubble sort by SCHOOL_ID ASC
 	for(i = 0; i < size - 1; i++){
 		for(j = 0; j < size - 1 -i; j++){
-			if(strcmp(id_table[j], id_table[j+1]) > 0){
-				strcpy(tmp, id_table[j]);
-				strcpy(id_table[j], id_table[j+1]);
-				strcpy(id_table[j+1], tmp);
+			if(strcmp(id_table[j], id_table[j+1]) > 0){  // if j hakbun big
+				strcpy(tmp, id_table[j]);  // save j to tmp
+				strcpy(id_table[j], id_table[j+1]);  // save j+1 to j
+				strcpy(id_table[j+1], tmp);  // save tmp to j
 			}
 		}
 	}
 }
 
-/* score_table을 파일명 기준으로 정렬한다    */
+/* score_table을 파일명 기준으로 정렬한다by element's qname    */
 /* size : make_scoreTable()에서 찾은 */
-/* ansDir 하위의 정답 파일 수 idx의 값 */
-void sort_scoreTable(int size)  // 아마 1 10 2 3 이런걸 1 2 3 10 으로 정렬해주는 듯. 정답 파일 이름 구조랑 gdb로 get_qname_num 봐야 알겠다.
+/* ansDir 하위의 정답 파일 수 */
+void sort_scoreTable(int size)  // 1-1.txt, ..., 29.c
 {
-	int i, j;
-	struct ssu_scoreTable tmp;
-	int num1_1, num1_2;
-	int num2_1, num2_2;
+	int i, j;  // index for sort
+	struct ssu_scoreTable tmp;  // tmp for swap
+	int num1_1, num1_2;  // a-b.txt -> _1 : a, _2 : b
+	int num2_1, num2_2;  // _1 : main qname num, _2 : sub qname num
 
-	// lets' gdb here 4/6
+	// sort scoreTable by qname number in ASC
 	for(i = 0; i < size - 1; i++){
-		for(j = 0; j < size - 1 - i; j++){
-
-			get_qname_number(score_table[j].qname, &num1_1, &num1_2);
+		for(j = 0; j < size - 1 - i; j++){  // bubble sort
+			// get j th qname's number
+			get_qname_number(score_table[j].qname, &num1_1, &num1_2);  
+			// get j+1 th qname's number
 			get_qname_number(score_table[j+1].qname, &num2_1, &num2_2);
 
+			// j's qname num is later, swap
 			if((num1_1 > num2_1) || ((num1_1 == num2_1) && (num1_2 > num2_2))){
 
-				memcpy(&tmp, &score_table[j], sizeof(score_table[0]));
-				memcpy(&score_table[j], &score_table[j+1], sizeof(score_table[0]));
-				memcpy(&score_table[j+1], &tmp, sizeof(score_table[0]));
+				memcpy(&tmp, &score_table[j], sizeof(score_table[0]));  // save j element to tmp
+				memcpy(&score_table[j], &score_table[j+1], sizeof(score_table[0]));// save j+1 to j element
+				memcpy(&score_table[j+1], &tmp, sizeof(score_table[0]));  // save tmp to j+1 element
 			}
 		}
 	}
@@ -488,17 +500,17 @@ void sort_scoreTable(int size)  // 아마 1 10 2 3 이런걸 1 2 3 10 으로 정
 /* 정답 파일 명으로 num1과 num2에 값 저장 */
 void get_qname_number(char *qname, int *num1, int *num2)
 {
-	char *p;
+	char *p;  // points qname
 	char dup[FILELEN];  // 정답 파일 이름 담는 배열
 
 	strncpy(dup, qname, strlen(qname));  // dup에 정답 파일 명 복사
-	*num1 = atoi(strtok(dup, "-."));  // gdb로 자세히 보기 아마 1-1, 1-2에서 뒤 숫자를 분리하나보다
+	*num1 = atoi(strtok(dup, "-."));  // seperate qname by (- | .) and save main num
 
-	p = strtok(NULL, "-.");
-	if(p == NULL)
-		*num2 = 0;
-	else
-		*num2 = atoi(p);
+	p = strtok(NULL, "-.");  // one more seperate
+	if(p == NULL)            // no number next to (- | .) ex) 20.c
+		*num2 = 0;           // sub num is 0
+	else                     // number exists next to (- | .)
+		*num2 = atoi(p);     // save sub num
 }
 
 int get_create_type()
@@ -522,36 +534,42 @@ int get_create_type()
 	return num;
 }
 
+/* called after set hakbun table */
+/* create score.csv */
+/* grading */
 void score_students()
 {
-	double score = 0;
-	int num;
-	int fd;
+	double score = 0;  // save students score
+	int num; // index for iter
+	int fd;  // fd for score.csv
 	char tmp[BUFLEN];
-	int size = sizeof(id_table) / sizeof(id_table[0]);
+	int size = sizeof(id_table) / sizeof(id_table[0]);  // hakbun table size
 
-	if((fd = creat("score.csv", 0666)) < 0){
-		fprintf(stderr, "creat error for score.csv");
+	if((fd = creat("score.csv", 0666)) < 0){  // create score.csv
+		fprintf(stderr, "creat error for score.csv");  // catch exception
 		return;
 	}
-	write_first_row(fd);
+	write_first_row(fd);  // add first row to score.csv
 
-	for(num = 0; num < size; num++)
+	for(num = 0; num < size; num++)  // iter size
 	{
-		if(!strcmp(id_table[num], ""))
+		if(!strcmp(id_table[num], ""))  // iter is ended
 			break;
 
-		sprintf(tmp, "%s,", id_table[num]);
-		write(fd, tmp, strlen(tmp)); 
+		sprintf(tmp, "%s,", id_table[num]);  // attatch , to hakbun
+		write(fd, tmp, strlen(tmp));  // write to score.csv
 
-		score += score_student(fd, id_table[num]);
+		score += score_student(fd, id_table[num]);  // write student's score to score.csv and accumulate score
 	}
 
-	printf("Total average : %.2f\n", score / num);
+	printf("Total average : %.2f\n", score / num);  // print students avg
 
 	close(fd);
 }
 
+/* called in score_students */
+/* calculate id's score and write to fd */
+/* fd : score.csv, id : hakbun */
 double score_student(int fd, char *id)
 {
 	int type;
@@ -606,22 +624,26 @@ double score_student(int fd, char *id)
 	return score;
 }
 
+/* called in score_students */
+/* write attributes in score.csv */ 
+/* ,1-1.txt,1-2.txt,...,29.c,sum */
+/* fd : score.csv */
 void write_first_row(int fd)
 {
 	int i;
 	char tmp[BUFLEN];
-	int size = sizeof(score_table) / sizeof(score_table[0]);
+	int size = sizeof(score_table) / sizeof(score_table[0]);  // questions num
 
-	write(fd, ",", 1);
+	write(fd, ",", 1);  // write ,
 
 	for(i = 0; i < size; i++){
-		if(score_table[i].score == 0)
+		if(score_table[i].score == 0)  // if write ended
 			break;
 
-		sprintf(tmp, "%s,", score_table[i].qname);
-		write(fd, tmp, strlen(tmp));
+		sprintf(tmp, "%s,", score_table[i].qname);  // attatch , to qname
+		write(fd, tmp, strlen(tmp));  // write to score.csv
 	}
-	write(fd, "sum\n", 4);
+	write(fd, "sum\n", 4);  // lastly, write sum
 }
 
 char *get_answer(int fd, char *result)
@@ -643,6 +665,7 @@ char *get_answer(int fd, char *result)
 	return result;
 }
 
+/* fill in the blank question */
 int score_blank(char *id, char *filename)
 {
 	char tokens[TOKEN_CNT][MINLEN];
@@ -752,6 +775,7 @@ int score_blank(char *id, char *filename)
 	return false;
 }
 
+/* program question */
 double score_program(char *id, char *filename)
 {
 	double compile;
@@ -1011,6 +1035,7 @@ int compare_resultfile(char *file1, char *file2)
 	return true;
 }
 
+/* should i replace system(command) ? */
 void redirection(char *command, int new, int old)
 {
 	int saved;
