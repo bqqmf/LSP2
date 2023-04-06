@@ -15,4 +15,4 @@ ssu_score.o: ssu_score.c
 	$(CC) -c $^ -g
 
 clean:
-	rm score*
+	rm *.o

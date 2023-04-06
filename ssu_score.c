@@ -34,7 +34,7 @@ void ssu_score(int argc, char *argv[])
 	char saved_path[BUFLEN];  // 현재 작업 디렉토리 저장
 	int i;					  // for을 위한 인덱스
 
-	
+
 	for(i = 0; i < argc; i++){  	 // 인자들 검사
 		if(!strcmp(argv[i], "-h")){  // -h 옵션 사용시 usage 출력
 			print_usage();
@@ -566,7 +566,9 @@ double score_student(int fd, char *id)
 		if(score_table[i].score == 0)
 			break;
 
-		sprintf(tmp, "%s/%s/%s", stuDir, id, score_table[i].qname);
+		if (snprintf(tmp, sizeof(tmp), "%s/%s/%s", stuDir, id,
+					score_table[i].qname) >= sizeof(tmp))
+			fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
 		if(access(tmp, F_OK) < 0)
 			result = false;
@@ -656,7 +658,8 @@ int score_blank(char *id, char *filename)
 	memset(qname, 0, sizeof(qname));
 	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));
 
-	sprintf(tmp, "%s/%s/%s", stuDir, id, filename);
+	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s", stuDir, id, filename) >= sizeof(tmp))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 	fd_std = open(tmp, O_RDONLY);
 	strcpy(s_answer, get_answer(fd_std, s_answer));
 
@@ -685,7 +688,8 @@ int score_blank(char *id, char *filename)
 	idx = 0;
 	std_root = make_tree(std_root, tokens, &idx, 0);
 
-	sprintf(tmp, "%s/%s", ansDir, filename);
+	if (snprintf(tmp, sizeof(tmp), "%s/%s", ansDir, filename) >= sizeof(tmp))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 	fd_ans = open(tmp, O_RDONLY);
 
 	while(1)
@@ -796,15 +800,21 @@ double compile_program(char *id, char *filename)
 
 	isthread = is_thread(qname);
 
-	sprintf(tmp_f, "%s/%s", ansDir, filename);
-	sprintf(tmp_e, "%s/%s.exe", ansDir, qname);
+	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s", ansDir, filename) >= sizeof(tmp_f))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
+	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s.exe", ansDir, qname) >= sizeof(tmp_e))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
 	if(tOption && isthread)
-		sprintf(command, "gcc -o %s %s -lpthread", tmp_e, tmp_f);
-	else
-		sprintf(command, "gcc -o %s %s", tmp_e, tmp_f);
+		if (snprintf(command, sizeof(command), "gcc -o %s %s -lpthread", tmp_e, tmp_f) >= sizeof(command))
 
-	sprintf(tmp_e, "%s/%s_error.txt", ansDir, qname);
+			fprintf(stderr, "tag buffer overflow - string is truncated\n");
+		else
+			if (snprintf(command, sizeof(command), "gcc -o %s %s", tmp_e, tmp_f) >= sizeof(command))
+				fprintf(stderr, "tag buffer overflow - string is truncated\n");
+
+	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s_error.txt", ansDir, qname) >= sizeof(tmp_e))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 	fd = creat(tmp_e, 0666);
 
 	redirection(command, fd, STDERR);
@@ -815,15 +825,20 @@ double compile_program(char *id, char *filename)
 	if(size > 0)
 		return false;
 
-	sprintf(tmp_f, "%s/%s/%s", stuDir, id, filename);
-	sprintf(tmp_e, "%s/%s/%s.stdexe", stuDir, id, qname);
+	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s/%s", stuDir, id, filename) >= sizeof(tmp_f))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
+	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s/%s.stdexe", stuDir, id, qname) >= sizeof(tmp_e))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
 	if(tOption && isthread)
-		sprintf(command, "gcc -o %s %s -lpthread", tmp_e, tmp_f);
-	else
-		sprintf(command, "gcc -o %s %s", tmp_e, tmp_f);
+		if (snprintf(command, sizeof(command), "gcc -o %s %s -lpthread", tmp_e, tmp_f) >= sizeof(command))
+			fprintf(stderr, "tag buffer overflow - string is truncated\n");
+		else
+			if (snprintf(command, sizeof(command), "gcc -o %s %s", tmp_e, tmp_f) >= sizeof(command))
+				fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
-	sprintf(tmp_f, "%s/%s/%s_error.txt", stuDir, id, qname);
+	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s/%s_error.txt", stuDir, id, qname) >= sizeof(tmp_f))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 	fd = creat(tmp_f, 0666);
 
 	redirection(command, fd, STDERR);
@@ -833,11 +848,13 @@ double compile_program(char *id, char *filename)
 	if(size > 0){
 		if(eOption)
 		{
-			sprintf(tmp_e, "%s/%s", errorDir, id);
+			if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s", errorDir, id) >= sizeof(tmp_e))
+				fprintf(stderr, "tag buffer overflow - string is truncated\n");
 			if(access(tmp_e, F_OK) < 0)
 				mkdir(tmp_e, 0755);
 
-			sprintf(tmp_e, "%s/%s/%s_error.txt", errorDir, id, qname);
+			if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s/%s_error.txt", errorDir, id, qname) >= sizeof(tmp_e))
+				fprintf(stderr, "tag buffer overflow - string is truncated\n");
 			rename(tmp_f, tmp_e);
 
 			result = check_error_warning(tmp_e);
@@ -887,22 +904,27 @@ int execute_program(char *id, char *filename)
 	memset(qname, 0, sizeof(qname));
 	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));
 
-	sprintf(ans_fname, "%s/%s.stdout", ansDir, qname);
+	if (snprintf(ans_fname, sizeof(ans_fname), "%s/%s.stdout", ansDir, qname) >= sizeof(ans_fname))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 	fd = creat(ans_fname, 0666);
 
-	sprintf(tmp, "%s/%s.exe", ansDir, qname);
+	if (snprintf(tmp, sizeof(tmp), "%s/%s.exe", ansDir, qname) >= sizeof(tmp))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 	redirection(tmp, fd, STDOUT);
 	close(fd);
 
-	sprintf(std_fname, "%s/%s/%s.stdout", stuDir, id, qname);
+	if (snprintf(std_fname, sizeof(std_fname), "%s/%s/%s.stdout", stuDir, id, qname) >= sizeof(std_fname))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 	fd = creat(std_fname, 0666);
 
-	sprintf(tmp, "%s/%s/%s.stdexe &", stuDir, id, qname);
+	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s.stdexe &", stuDir, id, qname) >= sizeof(tmp)) 
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
 	start = time(NULL);
 	redirection(tmp, fd, STDOUT);
 
-	sprintf(tmp, "%s.stdexe", qname);
+	if (snprintf(tmp, sizeof(tmp), "%s.stdexe", qname) >= sizeof(tmp))
+		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 	while((pid = inBackground(tmp)) > 0){
 		end = time(NULL);
 
