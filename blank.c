@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include "blank.h"
 
+// save data types
 char datatype[DATATYPE_SIZE][MINLEN] = {"int", "char", "double", "float", "long"
 			, "short", "ushort", "FILE", "DIR","pid"
 			,"key_t", "ssize_t", "mode_t", "ino_t", "dev_t"
@@ -165,23 +166,26 @@ void compare_tree(node *root1,  node *root2, int *result)
 	}
 }
 
+/* called in score_blank */
+/* tokenize student's answer and save to tokens */
+/* str : student's answer, tokens : dest to save */
 int make_tokens(char *str, char tokens[TOKEN_CNT][MINLEN])
 {
 	char *start, *end;
 	char tmp[BUFLEN];
 	char str2[BUFLEN];
-	char *op = "(),;><=!|&^/+-*\""; 
+	char *op = "(),;><=!|&^/+-*\"";  // operations
 	int row = 0;
 	int i;
  	int isPointer;
-	int lcount, rcount;
+	int lcount, rcount;  // (, ) nums
 	int p_str;
 	
-	clear_tokens(tokens);
+	clear_tokens(tokens);  // init tokens 0
 
-	start = str;
+	start = str;  // start points str
 	
-	if(is_typeStatement(str) == 0) 
+	if(is_typeStatement(str) == 0)  // check str is wrong answer
 		return false;	
 	
 	while(1)
@@ -1051,46 +1055,52 @@ int is_character(char c)
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
+/* called in make_tokens */
+/* check str is Statement */
+/* 0 : wrong answer */
+/* 1 : s_answer is normal answer */
+/* 2 : s_answer starts with gcc | or datatype */
+/* str : student's answer ex) lseek(fd, 15000, 0) */
 int is_typeStatement(char *str)
 { 
-	char *start;
-	char str2[BUFLEN] = {0}; 
+	char *start;  // index for str
+	char str2[BUFLEN] = {0};  // save str with no space
 	char tmp[BUFLEN] = {0}; 
-	char tmp2[BUFLEN] = {0}; 
+	char tmp2[BUFLEN] = {0};  // if student's answer has "gcc", save here 
 	int i;	 
 	
-	start = str;
-	strncpy(str2,str,strlen(str));
-	remove_space(str2);
+	start = str;  // points str's head
+	strncpy(str2,str,strlen(str));  // copy str to str2
+	remove_space(str2);  // remove space in str. ex) lseek(fd,15000,0)
 
-	while(start[0] == ' ')
-		start += 1;
+	while(start[0] == ' ')  // make start points non-space char of str
+		start += 1;  // ++ index
 
-	if(strstr(str2, "gcc") != NULL)
+	if(strstr(str2, "gcc") != NULL)  // str2 has "gcc"
 	{
-		strncpy(tmp2, start, strlen("gcc"));
-		if(strcmp(tmp2,"gcc") != 0)
-			return 0;
-		else
-			return 2;
+		strncpy(tmp2, start, strlen("gcc"));  // save "gcc" to 3 byte in start
+		if(strcmp(tmp2,"gcc") != 0)  // if student's answer doesn't start with gcc
+			return 0;  // return 0
+		else           // student's answer starts with gcc
+			return 2;  // return 2
 	}
 	
-	for(i = 0; i < DATATYPE_SIZE; i++)
+	for(i = 0; i < DATATYPE_SIZE; i++)  // i = 0 ~ < 35
 	{
-		if(strstr(str2,datatype[i]) != NULL)
+		if(strstr(str2,datatype[i]) != NULL)  // if s_answer has i'th datatype
 		{	
-			strncpy(tmp, str2, strlen(datatype[i]));
-			strncpy(tmp2, start, strlen(datatype[i]));
+			strncpy(tmp, str2, strlen(datatype[i]));  // save first part
+			strncpy(tmp2, start, strlen(datatype[i]));  // save first part
 			
-			if(strcmp(tmp, datatype[i]) == 0)
-				if(strcmp(tmp, tmp2) != 0)
-					return 0;  
+			if(strcmp(tmp, datatype[i]) == 0)  // if str2 starts with datatype[i]
+				if(strcmp(tmp, tmp2) != 0)  // if str and str2's first part is diff
+					return 0;  // wrong answer. s_answer has space in datatype
 				else
-					return 2;
+					return 2;  // s_answer starts with datatype
 		}
 
 	}
-	return 1;
+	return 1;  // normal answer
 
 }
 
@@ -1263,6 +1273,8 @@ int reset_tokens(int start, char tokens[TOKEN_CNT][MINLEN])
 	return true;
 }
 
+/* called in make_tokens */
+/* init 0 */ 
 void clear_tokens(char tokens[TOKEN_CNT][MINLEN])
 {
 	int i;
@@ -1271,29 +1283,35 @@ void clear_tokens(char tokens[TOKEN_CNT][MINLEN])
 		memset(tokens[i], 0, sizeof(tokens[i]));
 }
 
+/* called in score_blank() */
+/* remove right spaces */
+/* _str : student's answer */
 char *rtrim(char *_str)
 {
-	char tmp[BUFLEN];
-	char *end;
+	char tmp[BUFLEN];  // tmp for _str
+	char *end;  // index points tmp's tail
 
-	strcpy(tmp, _str);
-	end = tmp + strlen(tmp) - 1;
-	while(end != _str && isspace(*end))
-		--end;
+	strcpy(tmp, _str);  // copy
+	end = tmp + strlen(tmp) - 1;  // point last char in _str
+	while(end != _str && isspace(*end))  // end points first space after answer 
+		--end;  // -- index
 
-	*(end + 1) = '\0';
-	_str = tmp;
-	return _str;
+	*(end + 1) = '\0';  // replace space to \0
+	_str = tmp;  // save
+	return _str;  // return without no space after chars
 }
 
+/* called in score_blank() */
+/* remove left spaces */
+/* _str : student's answer */
 char *ltrim(char *_str)
 {
-	char *start = _str;
+	char *start = _str;  // points _str's head
 
-	while(*start != '\0' && isspace(*start))
-		++start;
-	_str = start;
-	return _str;
+	while(*start != '\0' && isspace(*start))  // start points last space before answer
+		++start;  // ++ index
+	_str = start;  // save
+	return _str;  // return without no space before chars
 }
 
 char* remove_extraspace(char *str)
@@ -1339,42 +1357,49 @@ char* remove_extraspace(char *str)
 
 
 
+/* called in is_typeStatement */
+/* remove space in str */
+/* str : copy of student's answer */
 void remove_space(char *str)
 {
-	char* i = str;
-	char* j = str;
+	char* i = str;  // points str's head
+	char* j = str;  // points str's head
 	
-	while(*j != 0)
+	while(*j != 0)  // while in str
 	{
-		*i = *j++;
-		if(*i != ' ')
+		*i = *j++;  // overwrite j'th to i'th
+		if(*i != ' ')  // if i'th char is space, overwrite next time
 			i++;
 	}
-	*i = 0;
+	*i = 0;  // str ends with \0
 }
 
+/* called in score_blank */
+/* check if student's answer is grammarly right abount ( ) */
+/* std : student's ans. ex) lseek(fd, 15000, 0) */
+/* return : 0(wrong) or 1(right) */
 int check_brackets(char *str)
 {
-	char *start = str;
+	char *start = str;  // point str's head
 	int lcount = 0, rcount = 0;
 	
-	while(1){
-		if((start = strpbrk(start, "()")) != NULL){
-			if(*(start) == '(')
-				lcount++;
+	while(1){  // check str
+		if((start = strpbrk(start, "()")) != NULL){  // if str has ( or )
+			if(*(start) == '(')  // current ch is (
+				lcount++;  // ( count ++
 			else
-				rcount++;
+				rcount++;  // ) count ++
 
-			start += 1; 		
+			start += 1;    // find ( or ) in the rest 		
 		}
 		else
-			break;
+			break;  // no more ( or ), break
 	}
 
-	if(lcount != rcount)
-		return 0;
+	if(lcount != rcount)  // check ( and ) pair
+		return 0;  // wrong answer in grammarly
 	else 
-		return 1;
+		return 1;  // right answer in grammarly
 }
 
 int get_token_cnt(char tokens[TOKEN_CNT][MINLEN])

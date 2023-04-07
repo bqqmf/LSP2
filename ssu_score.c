@@ -564,49 +564,52 @@ void score_students()
 
 	printf("Total average : %.2f\n", score / num);  // print students avg
 
-	close(fd);
+	close(fd);  // close score.csv
 }
 
 /* called in score_students */
-/* calculate id's score and write to fd */
+/* grading id's answer and write to f */
 /* fd : score.csv, id : hakbun */
+/* return : total sum of id's answers */
 double score_student(int fd, char *id)
 {
 	int type;
-	double result;
+	double result;  // true : tmp exist / false : tmp not exist
 	double score = 0;
-	int i;
-	char tmp[BUFLEN];
-	int size = sizeof(score_table) / sizeof(score_table[0]);
+	int i;  // index for loop
+	char tmp[BUFLEN];  // qname's abs path or score
+	int size = sizeof(score_table) / sizeof(score_table[0]);  // num of students
 
-	for(i = 0; i < size ; i++)
+	for(i = 0; i < size ; i++)  // iter size
 	{
-		if(score_table[i].score == 0)
+		if(score_table[i].score == 0)  // grading is ended
 			break;
 
+		// abs path of current student's qname ex) stuDir/20230000/1-1.txt
 		if (snprintf(tmp, sizeof(tmp), "%s/%s/%s", stuDir, id,
 					score_table[i].qname) >= sizeof(tmp))
+			// abs path > tmp, catch exeption
 			fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
-		if(access(tmp, F_OK) < 0)
-			result = false;
-		else
+		if(access(tmp, F_OK) < 0)  // check qname exists
+			result = false;  // not exist 
+		else  // qname exist
 		{
-			if((type = get_file_type(score_table[i].qname)) < 0)
+			if((type = get_file_type(score_table[i].qname)) < 0)  // file is not .txt or .c
 				continue;
 
-			if(type == TEXTFILE)
-				result = score_blank(id, score_table[i].qname);
-			else if(type == CFILE)
-				result = score_program(id, score_table[i].qname);
+			if(type == TEXTFILE)  // qname is .txt file
+				result = score_blank(id, score_table[i].qname);  // grading .txt
+			else if(type == CFILE)  // qname is .c file
+				result = score_program(id, score_table[i].qname); // grading .c
 		}
 
-		if(result == false)
-			write(fd, "0,", 2);
-		else{
-			if(result == true){
-				score += score_table[i].score;
-				sprintf(tmp, "%.2f,", score_table[i].score);
+		if(result == false)  // student doesn't submit file
+			write(fd, "0,", 2);  // no file -> 0 score
+		else{  // student submit file
+			if(result == true){  
+				score += score_table[i].score;  // += graded score
+				sprintf(tmp, "%.2f,", score_table[i].score);  // save score to tmp
 			}
 			else if(result < 0){
 				score = score + score_table[i].score + result;
@@ -618,10 +621,10 @@ double score_student(int fd, char *id)
 
 	printf("%s is finished. score : %.2f\n", id, score); 
 
-	sprintf(tmp, "%.2f\n", score);
-	write(fd, tmp, strlen(tmp));
+	sprintf(tmp, "%.2f\n", score);  // save sum to tmp
+	write(fd, tmp, strlen(tmp));  // write score sum
 
-	return score;
+	return score;  // return total sum
 }
 
 /* called in score_students */
@@ -646,64 +649,69 @@ void write_first_row(int fd)
 	write(fd, "sum\n", 4);  // lastly, write sum
 }
 
+/* called in score_blank() */
+/* fd : fd for student's file, result : save result */
+/* return : student's answer */
 char *get_answer(int fd, char *result)
 {
-	char c;
-	int idx = 0;
+	char c;  // save byte
+	int idx = 0;  // index for result
 
-	memset(result, 0, BUFLEN);
-	while(read(fd, &c, 1) > 0)
+	memset(result, 0, BUFLEN);  // init result 0
+	while(read(fd, &c, 1) > 0)  // read answer by 1 byte
 	{
-		if(c == ':')
+		if(c == ':')  // if char is :, end.
 			break;
 
-		result[idx++] = c;
+		result[idx++] = c;  // write answer by 1 byte
 	}
-	if(result[strlen(result) - 1] == '\n')
+	if(result[strlen(result) - 1] == '\n')  // replace \n to \0
 		result[strlen(result) - 1] = '\0';
 
-	return result;
+	return result;  // return answer from file
 }
 
 /* fill in the blank question */
+/* id : hakbun, filename : file to grade ex) 1-1.txt */
 int score_blank(char *id, char *filename)
 {
-	char tokens[TOKEN_CNT][MINLEN];
+	char tokens[TOKEN_CNT][MINLEN];  // 50 tokens, max length : 64
 	node *std_root = NULL, *ans_root = NULL;
 	int idx, start;
 	char tmp[BUFLEN];
-	char s_answer[BUFLEN], a_answer[BUFLEN];
+	char s_answer[BUFLEN], a_answer[BUFLEN];  // answer of student, answer
 	char qname[FILELEN];
-	int fd_std, fd_ans;
+	int fd_std, fd_ans;  // fd for student, answer
 	int result = true;
 	int has_semicolon = false;
 
-	memset(qname, 0, sizeof(qname));
+	memset(qname, 0, sizeof(qname));  // init 0
+	// get qname without extension. ex) 1-1.txt -> 1.1
 	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));
-
+	// abs path of student's file
 	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s", stuDir, id, filename) >= sizeof(tmp))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
-	fd_std = open(tmp, O_RDONLY);
-	strcpy(s_answer, get_answer(fd_std, s_answer));
+	fd_std = open(tmp, O_RDONLY);  // open ans file
+	strcpy(s_answer, get_answer(fd_std, s_answer));  // save student's answer
 
-	if(!strcmp(s_answer, "")){
-		close(fd_std);
+	if(!strcmp(s_answer, "")){  // student's answer is blank 
+		close(fd_std); // close file
+		return false; 
+	}
+
+	if(!check_brackets(s_answer)){  // if s_answer is grammarly wrong
+		close(fd_std);  // close fd 
 		return false;
 	}
 
-	if(!check_brackets(s_answer)){
-		close(fd_std);
-		return false;
+	strcpy(s_answer, ltrim(rtrim(s_answer)));  // remove left and right spaces
+
+	if(s_answer[strlen(s_answer) - 1] == ';'){  // answer ends with ;
+		has_semicolon = true;  // ; flag on
+		s_answer[strlen(s_answer) - 1] = '\0';  // replace ; to \0
 	}
 
-	strcpy(s_answer, ltrim(rtrim(s_answer)));
-
-	if(s_answer[strlen(s_answer) - 1] == ';'){
-		has_semicolon = true;
-		s_answer[strlen(s_answer) - 1] = '\0';
-	}
-
-	if(!make_tokens(s_answer, tokens)){
+	if(!make_tokens(s_answer, tokens)){  // tokenize s_answer
 		close(fd_std);
 		return false;
 	}

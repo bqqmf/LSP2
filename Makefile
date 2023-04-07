@@ -1,18 +1,18 @@
 OBJECTS = main.o blank.o ssu_score.o
 TARGET = ssu_score
-CC = gcc
+CC = gcc -g
 
 $(TARGET) : $(OBJECTS)
-	$(CC) -o $@ $^ -g
+	$(CC) -o $@ $^ 
 
 main.o: main.c
-	$(CC) -c $^ -g 
+	$(CC) -c $^
 
 blank.o: blank.c
-	$(CC) -c $^ -g
+	$(CC) -c $^ 
 
 ssu_score.o: ssu_score.c
-	$(CC) -c $^ -g
+	$(CC) -c $^ 
 
 clean:
 	rm *.o
