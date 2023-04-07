@@ -190,33 +190,34 @@ int make_tokens(char *str, char tokens[TOKEN_CNT][MINLEN])
 	
 	while(1)
 	{
-		if((end = strpbrk(start, op)) == NULL)
+		if((end = strpbrk(start, op)) == NULL)  // if s_answer has no op
 			break;
 
-		if(start == end){
+		if(start == end){  // s_ans[0] starts with op
 
-			if(!strncmp(start, "--", 2) || !strncmp(start, "++", 2)){
-				if(!strncmp(start, "++++", 4)||!strncmp(start,"----",4))
-					return false;
+			if(!strncmp(start, "--", 2) || !strncmp(start, "++", 2)){  // s_ans starts with -- or ++
+				if(!strncmp(start, "++++", 4)||!strncmp(start,"----",4))  // s_ans starts with ++++ or ----
+					return false;  // wrong answer
 
 				// ex) ++a
-				if(is_character(*ltrim(start + 2))){
+				if(is_character(*ltrim(start + 2))){  // if char behind ++ [0-9a-zA-Z]
 					if(row > 0 && is_character(tokens[row - 1][strlen(tokens[row - 1]) - 1]))
 						return false; //ex) ++a++
 
-					end = strpbrk(start + 2, op);
-					if(end == NULL)
-						end = &str[strlen(str)];
+					end = strpbrk(start + 2, op);  // find next op after ++
+					if(end == NULL)  // there's no op excepts for front ++
+						end = &str[strlen(str)];  // end points end of s_ans
+					// save tokens from s_ans
 					while(start < end) {
-						if(*(start - 1) == ' ' && is_character(tokens[row][strlen(tokens[row]) - 1]))
+						if(*(start - 1) == ' ' && is_character(tokens[row][strlen(tokens[row]) - 1]))  // prev char is space && current token's last char is [0-9a-Z]
 							return false;
-						else if(*start != ' ')
-							strncat(tokens[row], start, 1);
-						start++;	
+						else if(*start != ' ')  // save current char
+							strncat(tokens[row], start, 1);  // concat current char to row'th token
+						start++;  // points next char
 					}
 				}
 				// ex) a++
-				else if(row>0 && is_character(tokens[row - 1][strlen(tokens[row - 1]) - 1])){
+				else if(row>0 && is_character(tokens[row - 1][strlen(tokens[row - 1]) - 1])){  // 
 					if(strstr(tokens[row - 1], "++") != NULL || strstr(tokens[row - 1], "--") != NULL)	
 						return false;
 
@@ -427,37 +428,38 @@ int make_tokens(char *str, char tokens[TOKEN_CNT][MINLEN])
 				}
 			}
 		}
-		else{ 
-			if(all_star(tokens[row - 1]) && row > 1 && !is_character(tokens[row - 2][strlen(tokens[row - 2]) - 1]))   
+		else{  // s_ans doesn't start with op
+			if(all_star(tokens[row - 1]) && row > 1 && !is_character(tokens[row - 2][strlen(tokens[row - 2]) - 1]))  // prev token is 1 or more *s && prev prev token's last char is not character
 				row--;				
 
-			if(all_star(tokens[row - 1]) && row == 1)   
+			if(all_star(tokens[row - 1]) && row == 1)  // prev token is 1 or more *s && current row = 1
 				row--;	
 
-			for(i = 0; i < end - start; i++){
-				if(i > 0 && *(start + i) == '.'){
-					strncat(tokens[row], start + i, 1);
+			// save keyword to current token
+			for(i = 0; i < end - start; i++){  // end - start is keyword in front of op. ex) lseek, creat
+				if(i > 0 && *(start + i) == '.'){  // if keyword has .
+					strncat(tokens[row], start + i, 1);  // add . to current token
 
-					while( *(start + i +1) == ' ' && i< end - start )
+					while( *(start + i +1) == ' ' && i< end - start )  // space skip
 						i++; 
 				}
-				else if(start[i] == ' '){
-					while(start[i] == ' ')
+				else if(start[i] == ' '){  // if start starts with space
+					while(start[i] == ' ')  // skip spaces
 						i++;
 					break;
 				}
 				else
-					strncat(tokens[row], start + i, 1);
+					strncat(tokens[row], start + i, 1);  // add keyword's char to current token
 			}
 
-			if(start[0] == ' '){
+			if(start[0] == ' '){  // if start[0] is space
 				start += i;
 				continue;
 			}
 			start += i;
 		}
 			
-		strcpy(tokens[row], ltrim(rtrim(tokens[row])));
+		strcpy(tokens[row], ltrim(rtrim(tokens[row])));  // remove spaces in token
 
 		 if(row > 0 && is_character(tokens[row][strlen(tokens[row]) - 1]) 
 				&& (is_typeStatement(tokens[row - 1]) == 2 
@@ -584,6 +586,8 @@ int make_tokens(char *str, char tokens[TOKEN_CNT][MINLEN])
 	return true;
 }
 
+/* called in score_blank */
+/* make lcrs tree with s_ans's tokens*/
 node *make_tree(node *root, char (*tokens)[MINLEN], int *idx, int parentheses)
 {
 	node *cur = root;
@@ -1049,7 +1053,9 @@ void free_node(node *cur)
 	}
 }
 
-
+/* called in make_tokens() */
+/* return : is [0-9a-zA-Z] */
+/* c : char in s_ans */
 int is_character(char c)
 {
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
@@ -1142,18 +1148,23 @@ int find_typeSpecifier2(char tokens[TOKEN_CNT][MINLEN])
     return -1;
 }
 
+/* called in make_tokens() */
+/* return */
+/* 0 : str has not * char, */
+/* 1 : str is composed with */
+/* str : prev token */
 int all_star(char *str)
 {
-	int i;
-	int length= strlen(str);
+	int i;  // index
+	int length= strlen(str);  // len of token
 	
- 	if(length == 0)	
+ 	if(length == 0)	// no *
 		return 0;
 	
 	for(i = 0; i < length; i++)
-		if(str[i] != '*')
+		if(str[i] != '*')  // not * char exists
 			return 0;
-	return 1;
+	return 1;  // only * there
 
 }
 

@@ -676,7 +676,7 @@ char *get_answer(int fd, char *result)
 int score_blank(char *id, char *filename)
 {
 	char tokens[TOKEN_CNT][MINLEN];  // 50 tokens, max length : 64
-	node *std_root = NULL, *ans_root = NULL;
+	node *std_root = NULL, *ans_root = NULL;  // root of student, answer tree
 	int idx, start;
 	char tmp[BUFLEN];
 	char s_answer[BUFLEN], a_answer[BUFLEN];  // answer of student, answer
@@ -711,13 +711,14 @@ int score_blank(char *id, char *filename)
 		s_answer[strlen(s_answer) - 1] = '\0';  // replace ; to \0
 	}
 
-	if(!make_tokens(s_answer, tokens)){  // tokenize s_answer
+	if(!make_tokens(s_answer, tokens)){  // tokenize s_answer and save to tokens
 		close(fd_std);
 		return false;
 	}
 
 	idx = 0;
-	std_root = make_tree(std_root, tokens, &idx, 0);
+	// make student's tree with tokens
+	std_root = make_tree(std_root, tokens, &idx, 0); 
 
 	if (snprintf(tmp, sizeof(tmp), "%s/%s", ansDir, filename) >= sizeof(tmp))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
