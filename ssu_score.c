@@ -21,7 +21,7 @@ char id_table[SNUM][10];                         // max save 100 students's STUD
 char stuDir[BUFLEN];  // 학생 디렉토리 경로
 char ansDir[BUFLEN];  // 정답 디렉토리 경로
 char errorDir[BUFLEN];
-char threadFiles[ARGNUM][FILELEN];
+char threadFiles[ARGNUM][FILELEN];  // 5개까지 thread로 작업중인 파일명을 저장하는 배열?
 char iIDs[ARGNUM][FILELEN];
 
 int eOption = false;
@@ -575,14 +575,14 @@ double score_student(int fd, char *id)
 {
 	int type;  // 문제의 유형 
 	double result;  // 학생의 답안 제출 여부
-	double score = 0;  // 점수
+	double score = 0;  // 총점
 	int i;  // 반복분의 인덱스
 	char tmp[BUFLEN];  // 학생이 제출한 답안의 절대 경로 또는 점수 저장
-	int size = sizeof(score_table) / sizeof(score_table[0]);  // 답안 제출 학생 수
+	int size = sizeof(score_table) / sizeof(score_table[0]);  // 문제 수
 
-	for(i = 0; i < size ; i++)  // 학생 수 만큼 반복
+	for(i = 0; i < size ; i++)  // 문제 수 만큼 반복
 	{
-		if(score_table[i].score == 0)  // 모든 학생 채점이 끝나면 종료
+		if(score_table[i].score == 0)  // 모든 문제 채점이 끝나면 종료
 			break;
 
 		// 학번이 id인 학생의 제출 답안의 절대 경로 ex) stuDir/20230000/1-1.txt
@@ -599,27 +599,27 @@ double score_student(int fd, char *id)
 				continue;
 
 			if(type == TEXTFILE)  // 문제가 .txt 파일
-				result = score_blank(id, score_table[i].qname);  // .txt 문제 채점
+				result = score_blank(id, score_table[i].qname);  // .txt 문제 채점 후 정답 여부 저장
 			else if(type == CFILE)  // 문제가 .c 파일
-				result = score_program(id, score_table[i].qname); // .c 문제 채점
+				result = score_program(id, score_table[i].qname); // .c 문제 채점 후 정답 여부 저장
 		}
 
-		if(result == false)  // 학생이 i번째 문제의 답안을 제출하지 않았다면
+		if(result == false)  // 학생의 답안이 오답이라면
 			write(fd, "0,", 2);  // 0점 처리
-		else{  // 제출 했다면
-			if(result == true){  
-				score += score_table[i].score;  // += graded score
-				sprintf(tmp, "%.2f,", score_table[i].score);  // save score to tmp
+		else{  // 오답이 아니라면
+			if(result == true){  // 정답이라면
+				score += score_table[i].score;  // i번째 문제의 배점을 총점에 더하기
+				sprintf(tmp, "%.2f,", score_table[i].score);  // tmp에 배점 저장
 			}
-			else if(result < 0){
-				score = score + score_table[i].score + result;
-				sprintf(tmp, "%.2f,", score_table[i].score + result);
+			else if(result < 0){  // 이 경우는 잘 모르겠다 음수인데 아래에서 더하는거 보니 프로그램 채점의 경우 감점을 고려해서 감점 값인 음수를 리턴하나?
+				score = score + score_table[i].score + result;  // 총점 + 배점 - 감점
+				sprintf(tmp, "%.2f,", score_table[i].score + result);  // tmp에 총점 저장
 			}
-			write(fd, tmp, strlen(tmp));
+			write(fd, tmp, strlen(tmp));  // score.csv에 학생의 점수 쓰기
 		}
 	}
 
-	printf("%s is finished. score : %.2f\n", id, score); 
+	printf("%s is finished. score : %.2f\n", id, score);  // id 학생의 총점 출력
 
 	sprintf(tmp, "%.2f\n", score);  // tmp에 문자열로 총점 저장
 	write(fd, tmp, strlen(tmp));  // 총점 score.csv에 쓰기
@@ -627,260 +627,290 @@ double score_student(int fd, char *id)
 	return score;  // id 학생의 총점 리턴
 }
 
-/* called in score_students */
-/* write attributes in score.csv */ 
+/* score_students()에서 호출됨 */
+/* score.csv의 첫 행에 문제 번호들, 합계를 적는다. */ 
 /* ,1-1.txt,1-2.txt,...,29.c,sum */
 /* fd : score.csv */
 void write_first_row(int fd)
 {
 	int i;
 	char tmp[BUFLEN];
-	int size = sizeof(score_table) / sizeof(score_table[0]);  // questions num
+	int size = sizeof(score_table) / sizeof(score_table[0]);  // 문제들 수
 
-	write(fd, ",", 1);  // write ,
+	write(fd, ",", 1);  // , 쓰기
 
 	for(i = 0; i < size; i++){
-		if(score_table[i].score == 0)  // if write ended
+		if(score_table[i].score == 0)  // 전부 다 썼다면 종료
 			break;
 
-		sprintf(tmp, "%s,", score_table[i].qname);  // attatch , to qname
-		write(fd, tmp, strlen(tmp));  // write to score.csv
+		sprintf(tmp, "%s,", score_table[i].qname);  // 문제 이름에 , 붙이기
+		write(fd, tmp, strlen(tmp));  // score.csv에 쓰기
 	}
-	write(fd, "sum\n", 4);  // lastly, write sum
+	write(fd, "sum\n", 4);  // 마지막으로 sum 쓰기
 }
 
-/* called in score_blank() */
-/* fd : fd for student's file, result : save result */
-/* return : student's answer */
+/* score_blank()에서 호출됨 */
+/* fd : 학생 또는 답안파일의 fd, result : 제출한 답안 저장 */
+/* 모범 답안 파일의 경우 같은 fd에 대해 또 호출된다면 */
+/* : 를 기준으로 다음 답을 저장 */
+/* return : 제출한 답안 */
 char *get_answer(int fd, char *result)
 {
-	char c;  // save byte
+	char c;  // 1 바이트씩 읽기
 	int idx = 0;  // index for result
 
-	memset(result, 0, BUFLEN);  // init result 0
-	while(read(fd, &c, 1) > 0)  // read answer by 1 byte
+	memset(result, 0, BUFLEN);  // result 초기화
+	while(read(fd, &c, 1) > 0)  // 1 바이트씩 읽기
 	{
-		if(c == ':')  // if char is :, end.
+		if(c == ':')  // :를 읽으면 종료
 			break;
 
-		result[idx++] = c;  // write answer by 1 byte
+		result[idx++] = c;  // result에 읽은 글자 옮기기
 	}
-	if(result[strlen(result) - 1] == '\n')  // replace \n to \0
+	if(result[strlen(result) - 1] == '\n')  // \n을 \0 으로 변환
 		result[strlen(result) - 1] = '\0';
 
-	return result;  // return answer from file
+	return result;  // 읽은 답안 리턴
 }
 
-/* fill in the blank question */
-/* id : hakbun, filename : file to grade ex) 1-1.txt */
+/* 빈칸 채우기 문제 채점 */
+/* id가 제출한 filename의 답을 트리로 만들고 */
+/* filename의 모범 답안을 트리로 만들어 비교 */
+/* id : 학번, filename : 채점 할 파일명 ex) 1-1.txt */
+/* return : true - 정답, false - 오답 */
 int score_blank(char *id, char *filename)
 {
-	char tokens[TOKEN_CNT][MINLEN];  // 50 tokens, max length : 64
-	node *std_root = NULL, *ans_root = NULL;  // root of student, answer tree
+	char tokens[TOKEN_CNT][MINLEN];  // 답안을 쪼갠다. 50개 토큰, 최대 길이 : 64
+	node *std_root = NULL, *ans_root = NULL;  // student, answer 트리의 root
 	int idx, start;
 	char tmp[BUFLEN];
-	char s_answer[BUFLEN], a_answer[BUFLEN];  // answer of student, answer
+	char s_answer[BUFLEN], a_answer[BUFLEN];  // 학생 답안, 모범 답안
 	char qname[FILELEN];
-	int fd_std, fd_ans;  // fd for student, answer
-	int result = true;
-	int has_semicolon = false;
+	int fd_std, fd_ans;  // fd for 학생 파일, 답안 파일
+	int result = true;  // 정답 결과
+	int has_semicolon = false;  // 답안의 ; 여부
 
-	memset(qname, 0, sizeof(qname));  // init 0
-	// get qname without extension. ex) 1-1.txt -> 1.1
+	memset(qname, 0, sizeof(qname));  // qname을 0으로 초기화
+	// 문제 이름에서 확장자 제거 ex) 1-1.txt -> 1.1
 	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));
-	// abs path of student's file
+	// 학생이 제출한 filename의 절대 경로
 	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s", stuDir, id, filename) >= sizeof(tmp))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
-	fd_std = open(tmp, O_RDONLY);  // open ans file
-	strcpy(s_answer, get_answer(fd_std, s_answer));  // save student's answer
+	fd_std = open(tmp, O_RDONLY);  // 학생 제출 파일 열기
+	strcpy(s_answer, get_answer(fd_std, s_answer));  // s_answer에 학생 답안 저장
 
-	if(!strcmp(s_answer, "")){  // student's answer is blank 
-		close(fd_std); // close file
-		return false; 
+	if(!strcmp(s_answer, "")){  // 빈칸을 써서 냈다면
+		close(fd_std); // 파일 닫기
+		return false;  // 오답
 	}
 
-	if(!check_brackets(s_answer)){  // if s_answer is grammarly wrong
-		close(fd_std);  // close fd 
-		return false;
+	if(!check_brackets(s_answer)){  // 답안의 ( ) 짝이 안맞으면
+		close(fd_std);  // 파일 닫기
+		return false;  // 오답
 	}
 
-	strcpy(s_answer, ltrim(rtrim(s_answer)));  // remove left and right spaces
+	strcpy(s_answer, ltrim(rtrim(s_answer)));  // 답안의 좌우 공백 제거
 
-	if(s_answer[strlen(s_answer) - 1] == ';'){  // answer ends with ;
+	if(s_answer[strlen(s_answer) - 1] == ';'){  // 답안이 ;로 끝나면
 		has_semicolon = true;  // ; flag on
-		s_answer[strlen(s_answer) - 1] = '\0';  // replace ; to \0
+		s_answer[strlen(s_answer) - 1] = '\0';  // ;를 \0으로 바꾸기
 	}
 
-	if(!make_tokens(s_answer, tokens)){  // tokenize s_answer and save to tokens
+	if(!make_tokens(s_answer, tokens)){  // 답안을 쪼개서 tokens에 저장
 		close(fd_std);
-		return false;
+		return false;  // 오답
 	}
 
 	idx = 0;
-	// make student's tree with tokens
-	std_root = make_tree(std_root, tokens, &idx, 0); 
+	// 답안 토큰들로 학생 트리 생성
+	std_root = make_tree(std_root, tokens, &idx, 0);  // tokens로 만든 트리의 root를 가리킴
 
+	// tmp에 답안 파일의 절대 경로 저장
 	if (snprintf(tmp, sizeof(tmp), "%s/%s", ansDir, filename) >= sizeof(tmp))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
-	fd_ans = open(tmp, O_RDONLY);
+	fd_ans = open(tmp, O_RDONLY);  // 답안 파일 열기
 
+	// 학생 답안과 모범 답안을 비교하는데,
+	// 각 답안을 tokens로 바꾸고 트리를 만들어 트리끼리 비교한다.
 	while(1)
 	{
 		ans_root = NULL;
 		result = true;
 
-		for(idx = 0; idx < TOKEN_CNT; idx++)
-			memset(tokens[idx], 0, sizeof(tokens[idx]));
+		for(idx = 0; idx < TOKEN_CNT; idx++)  // 0 ~ 49
+			memset(tokens[idx], 0, sizeof(tokens[idx]));  // tokens 초기화
 
-		strcpy(a_answer, get_answer(fd_ans, a_answer));
+		strcpy(a_answer, get_answer(fd_ans, a_answer));  // a_answer에 모범 답안 복사
 
-		if(!strcmp(a_answer, ""))
+		if(!strcmp(a_answer, ""))  // a_answer가 공백이면 break;
 			break;
 
-		strcpy(a_answer, ltrim(rtrim(a_answer)));
+		strcpy(a_answer, ltrim(rtrim(a_answer)));  // a_answer의 좌우 공백 제거
 
-		if(has_semicolon == false){
-			if(a_answer[strlen(a_answer) -1] == ';')
-				continue;
+		if(has_semicolon == false){  // 학생 답안에 ;가 없는데
+			if(a_answer[strlen(a_answer) -1] == ';')  // 모범 답안의 마지막 글자가 ; 이면
+				continue;  // 패스
 		}
 
-		else if(has_semicolon == true)
+		else if(has_semicolon == true)  // 학생 답안에 ;가 있으면
 		{
-			if(a_answer[strlen(a_answer) - 1] != ';')
+			if(a_answer[strlen(a_answer) - 1] != ';')  // 모범 답안의 끝이 ;면
 				continue;
 			else
-				a_answer[strlen(a_answer) - 1] = '\0';
+				a_answer[strlen(a_answer) - 1] = '\0';  // 학생처럼 \0로 바꾸기
 		}
 
-		if(!make_tokens(a_answer, tokens))
+		if(!make_tokens(a_answer, tokens))  // 모범 답안으로 tokens 채우기
 			continue;
 
 		idx = 0;
-		ans_root = make_tree(ans_root, tokens, &idx, 0);
+		ans_root = make_tree(ans_root, tokens, &idx, 0);  // 트리 생성
 
-		compare_tree(std_root, ans_root, &result);
+		compare_tree(std_root, ans_root, &result);  // 비교 결과가 result에 저장
 
-		if(result == true){
-			close(fd_std);
-			close(fd_ans);
+		if(result == true){  // 정답이라면 
+			close(fd_std);  // 학생 파일 닫기
+			close(fd_ans);  // 정답 파일 닫기
 
-			if(std_root != NULL)
-				free_node(std_root);
-			if(ans_root != NULL)
-				free_node(ans_root);
-			return true;
+			if(std_root != NULL)      // 트리에 노드가 남아 있다면
+				free_node(std_root);  // 트리 노드 해제
+			if(ans_root != NULL)      // 트리에 노드가 남아 있다면
+				free_node(ans_root);  // 트리 노드 해제
+			return true;  // 정답
 
 		}
 	}
 
-	close(fd_std);
-	close(fd_ans);
+	close(fd_std);  // 학생 파일 닫기
+	close(fd_ans);  // 정답 파일 닫기
 
-	if(std_root != NULL)
-		free_node(std_root);
-	if(ans_root != NULL)
-		free_node(ans_root);
+	if(std_root != NULL)      // 트리에 노드가 남아 있다면
+		free_node(std_root);  // 트리 노드 해제
+	if(ans_root != NULL)      // 트리에 노드가 남아 있다면
+		free_node(ans_root);  // 트리 노드 해제
 
-	return false;
+	return false;  // 오답
 }
 
-/* program question */
+/* 프로그램 문제 채점 */
+/* id가 제출한 filename.c를 컴파일하여 .stdexe를 만들고 실행 결과를.stdout에 저장하고 */
+/* 답안 filename.c를 컴파일하여 .exe를 만들고 실행 결과를.stdout에 저장하여 */
+/* 각 .stdout을 한 문자씩 비교 */
+/* id : 학번, filename : 채점 할 파일명 ex) 1-1.txt */
+/* return : true(정답), false(오답) */
 double score_program(char *id, char *filename)
 {
-	double compile;
+	double compile;  // 컴파일 에러 여부 저장 or
 	int result;
 
-	compile = compile_program(id, filename);
+	compile = compile_program(id, filename);  // 컴파일 성공시 1, 에러시 0
 
-	if(compile == ERROR || compile == false)
+	if(compile == ERROR || compile == false)  // 컴파일 에러시 오답 리턴
 		return false;
 
-	result = execute_program(id, filename);
+	result = execute_program(id, filename);  // 정답 여부 저장
 
-	if(!result)
+	if(!result)  // 오답
 		return false;
 
-	if(compile < 0)
+	if(compile < 0)  
 		return compile;
 
-	return true;
+	return true;  // 정답
 }
 
+/* compile_program에서 호출됨 */
+/* threadFiles 배열에 qname이 있는지 리턴 */
+/* qname : 확장자 없는 파일 명 ex) 20.c의 20*/
 int is_thread(char *qname)
 {
 	int i;
-	int size = sizeof(threadFiles) / sizeof(threadFiles[0]);
+	int size = sizeof(threadFiles) / sizeof(threadFiles[0]);  // threadFiles의 크기
 
 	for(i = 0; i < size; i++){
-		if(!strcmp(threadFiles[i], qname))
+		if(!strcmp(threadFiles[i], qname))  // threadFiles에 qname이 있다면 true 리턴
 			return true;
 	}
-	return false;
+	return false;  // 없으면 false 리턴
 }
 
+/* score_program()에서 호출됨 */
+/* id : 학번, filename : 채점 할 파일명 ex) 1-1.txt */
+/* return : 실수(e 옵션), true(컴파일 시 에러 x), false(컴파일 시 에러 o) */
 double compile_program(char *id, char *filename)
 {
-	int fd;
-	char tmp_f[BUFLEN], tmp_e[BUFLEN];
-	char command[BUFLEN];
-	char qname[FILELEN];
-	int isthread;
-	off_t size;
+	int fd;  // creat 용 fd
+	char tmp_f[BUFLEN], tmp_e[BUFLEN];  // filename의 절대 경로, qname_error.txt의 절대 경로
+	char command[BUFLEN];  // gcc가 담길 명령어
+	char qname[FILELEN];  // 확장자 없는 채점할 파일의 이름 ex) 20
+	int isthread;  // 스레드로 작업중인지 여부 저장
+	off_t size;  // error.txt의 크기
 	double result;
 
-	memset(qname, 0, sizeof(qname));
-	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));
+	memset(qname, 0, sizeof(qname));  // qname 초기화
+	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));  // filename에서 확장자 제거
 
-	isthread = is_thread(qname);
+	isthread = is_thread(qname);  // 스레드로 작업중인지 확인
 
+	// tmp_f에 정답 파일(.c)의 절대 경로 저장
 	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s", ansDir, filename) >= sizeof(tmp_f))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
+	// tmp_e에 정답 실행파일(.exe)의 절대 경로 저장
 	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s.exe", ansDir, qname) >= sizeof(tmp_e))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
-	if(tOption && isthread)
+	if(tOption && isthread)  // t 옵션은 모르겠다
+		// command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
 		if (snprintf(command, sizeof(command), "gcc -o %s %s -lpthread", tmp_e, tmp_f) >= sizeof(command))
-
 			fprintf(stderr, "tag buffer overflow - string is truncated\n");
 		else
+			// command에 컴파일 명령 넣기
 			if (snprintf(command, sizeof(command), "gcc -o %s %s", tmp_e, tmp_f) >= sizeof(command))
 				fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
+	// tmp_e에 qname_error.txt 저장
 	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s_error.txt", ansDir, qname) >= sizeof(tmp_e))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
-	fd = creat(tmp_e, 0666);
+	fd = creat(tmp_e, 0666);  // ANS_DIR 아래에 20_error.txt 생성. 나중에 ANS 밑에 들어가게 바꾸기
 
-	redirection(command, fd, STDERR);
-	size = lseek(fd, 0, SEEK_END);
-	close(fd);
-	unlink(tmp_e);
+	redirection(command, fd, STDERR);  // command의 표준에러를 error.txt에 출력
+	size = lseek(fd, 0, SEEK_END);  // error.txt의 파일 크기 저장
+	close(fd);  // 파일 닫기
+	unlink(tmp_e);  // error.txt 삭제
 
-	if(size > 0)
+	if(size > 0)  // 에러가 출력 되었다면 오답
 		return false;
 
+	// tmp_f에 id 학생이 제출한 filename 절대 경로 저장
 	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s/%s", stuDir, id, filename) >= sizeof(tmp_f))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
+	// tmp_e에 id 학생이 제출한 filename의 .stdexe 절대 경로 저장
 	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s/%s.stdexe", stuDir, id, qname) >= sizeof(tmp_e))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
+	// t 옵션
 	if(tOption && isthread)
+		// command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
 		if (snprintf(command, sizeof(command), "gcc -o %s %s -lpthread", tmp_e, tmp_f) >= sizeof(command))
 			fprintf(stderr, "tag buffer overflow - string is truncated\n");
 		else
+			// command에 컴파일 명령 넣기
 			if (snprintf(command, sizeof(command), "gcc -o %s %s", tmp_e, tmp_f) >= sizeof(command))
 				fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
+	// tmp_f에 id 학생의 qname_error.txt 저장
 	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s/%s_error.txt", stuDir, id, qname) >= sizeof(tmp_f))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
-	fd = creat(tmp_f, 0666);
+	fd = creat(tmp_f, 0666);  // stuDir/id/qname_error.txt 저장
 
-	redirection(command, fd, STDERR);
-	size = lseek(fd, 0, SEEK_END);
-	close(fd);
+	redirection(command, fd, STDERR);  // command의 표준 에러를 error.txt에 출력
+	size = lseek(fd, 0, SEEK_END);  // error.txt 파일 크기 저장
+	close(fd);  // 파일 닫기
 
-	if(size > 0){
+	if(size > 0){  // 에러가 있다면
 		if(eOption)
 		{
+			// errorDir을 어디서 지정해줘야겠다.
 			if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s", errorDir, id) >= sizeof(tmp_e))
 				fprintf(stderr, "tag buffer overflow - string is truncated\n");
 			if(access(tmp_e, F_OK) < 0)
@@ -900,8 +930,8 @@ double compile_program(char *id, char *filename)
 		return result;
 	}
 
-	unlink(tmp_f);
-	return true;
+	unlink(tmp_f);  // stuDir/id/20_error.txt 삭제
+	return true;  // 에러가 없으므로 true 리턴
 }
 
 double check_error_warning(char *filename)
@@ -925,45 +955,55 @@ double check_error_warning(char *filename)
 	return warning;
 }
 
+/* score_program()에서 호출됨 */
+/* compile_program()에서 만든 qname.exe과 qname.stdexe를 */
+/* 실행한 결과 출력을 qname.stdout에 저장한다 */
+/* id : 학번, filename : 채점 할 파일명 ex) 1-1.txt */
+/* return : true(정답), false(오답 or 실행 시간이 5초 이상)*/
 int execute_program(char *id, char *filename)
 {
-	char std_fname[BUFLEN], ans_fname[BUFLEN];
-	char tmp[BUFLEN];
-	char qname[FILELEN];
-	time_t start, end;
-	pid_t pid;
-	int fd;
+	char std_fname[BUFLEN], ans_fname[BUFLEN];  // qname.stdexe와 qname.exe의 실행 결과 저장할 파일 경로
+	char tmp[BUFLEN];  // tmp
+	char qname[FILELEN];  // 확장자 없는 filename 저장
+	time_t start, end;  // 시간 저장
+	pid_t pid;  // qname.stdexe가 백그라운드에서 실행중인지 여부 저장
+	int fd;  // creat 용 fd
 
-	memset(qname, 0, sizeof(qname));
-	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));
+	memset(qname, 0, sizeof(qname));  // qname 초기화
+	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));  // filename에서 확장자 제거 후 저장
 
+	// ans_fname에 qname.stdout의 절대 경로 저장
 	if (snprintf(ans_fname, sizeof(ans_fname), "%s/%s.stdout", ansDir, qname) >= sizeof(ans_fname))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
-	fd = creat(ans_fname, 0666);
+	fd = creat(ans_fname, 0666);  // 답안 qname.stdout 생성
 
+	// ans_fname에 모범 답안의 qname.exe의 절대 경로 저장
 	if (snprintf(tmp, sizeof(tmp), "%s/%s.exe", ansDir, qname) >= sizeof(tmp))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
-	redirection(tmp, fd, STDOUT);
-	close(fd);
+	redirection(tmp, fd, STDOUT);  // qname.exe 실행 결과 출력을 qname.stdout에 저장
+	close(fd);  // qname.stdout 닫기
 
+	// std_fname에 학생의 qname.stdout의 절대 경로 저장
 	if (snprintf(std_fname, sizeof(std_fname), "%s/%s/%s.stdout", stuDir, id, qname) >= sizeof(std_fname))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
-	fd = creat(std_fname, 0666);
+	fd = creat(std_fname, 0666);  // 학생 qname.stdout 생성
 
+	// tmp에 백그라운드로 학생의 qname.stdexe 실행 저장
 	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s.stdexe &", stuDir, id, qname) >= sizeof(tmp)) 
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
 
-	start = time(NULL);
-	redirection(tmp, fd, STDOUT);
+	start = time(NULL);  // 실행 시작 시간 저장
+	redirection(tmp, fd, STDOUT);  // 학생의 실행 프로그램 실행 결과를 qname.stdout에 저장
 
+	// tmp에 qname.stdexe 저장
 	if (snprintf(tmp, sizeof(tmp), "%s.stdexe", qname) >= sizeof(tmp))
 		fprintf(stderr, "tag buffer overflow - string is truncated\n");
-	while((pid = inBackground(tmp)) > 0){
-		end = time(NULL);
+	while((pid = inBackground(tmp)) > 0){  // qname.stdexe가 백그라운드로 실행중이라면
+		end = time(NULL);  // 현재 시간 저장
 
-		if(difftime(end, start) > OVER){
-			kill(pid, SIGKILL);
-			close(fd);
+		if(difftime(end, start) > OVER){  // 5초 이상 걸리면 
+			kill(pid, SIGKILL);  // 프로세스 kill
+			close(fd);  // 파일 닫기
 			return false;
 		}
 	}
@@ -973,6 +1013,9 @@ int execute_program(char *id, char *filename)
 	return compare_resultfile(std_fname, ans_fname);
 }
 
+/* execute_program() 에서 호출됨 */
+/* name : 백그라운드에서 실행중인 파일 이름 */
+/* return : 백그라운드로 실행중인 pid 리턴, 없으면 0 */
 pid_t inBackground(char *name)
 {
 	pid_t pid;
@@ -981,80 +1024,87 @@ pid_t inBackground(char *name)
 	int fd;
 	off_t size;
 
-	memset(tmp, 0, sizeof(tmp));
-	fd = open("background.txt", O_RDWR | O_CREAT | O_TRUNC, 0666);
+	memset(tmp, 0, sizeof(tmp));  // tmp 초기화
+	fd = open("background.txt", O_RDWR | O_CREAT | O_TRUNC, 0666);  // background.txt 생성
 
-	sprintf(command, "ps | grep %s", name);
-	redirection(command, fd, STDOUT);
+	sprintf(command, "ps | grep %s", name);  // 프로세스 찾는 명령어
+	redirection(command, fd, STDOUT);  // ps | grep 의 결과를 background.txt에 출력
 
-	lseek(fd, 0, SEEK_SET);
-	read(fd, tmp, sizeof(tmp));
+	lseek(fd, 0, SEEK_SET);  // background.txt의 맨 앞으로 오프셋 이동
+	read(fd, tmp, sizeof(tmp));  // 64바이트 읽기
 
-	if(!strcmp(tmp, "")){
-		unlink("background.txt");
-		close(fd);
+	if(!strcmp(tmp, "")){  // ps 의 결과가 없다면
+		unlink("background.txt");  // 파일 삭제
+		close(fd);  // 파일 닫기
 		return 0;
 	}
 
-	pid = atoi(strtok(tmp, " "));
-	close(fd);
+	pid = atoi(strtok(tmp, " "));  // PID 번호를 int로 저장
+	close(fd);  // 파일 닫기
 
-	unlink("background.txt");
-	return pid;
+	unlink("background.txt");  // 파일 삭제
+	return pid;  // pid 리턴
 }
 
+/* execute_program() 에서 호출됨 */
+/* file1 : 학생 프로그램 실행 결과 */
+/* file2 : 정답 프로그램 실행 결과 */
+/* return : true(정답), false(오답) */
 int compare_resultfile(char *file1, char *file2)
 {
-	int fd1, fd2;
-	char c1, c2;
-	int len1, len2;
+	int fd1, fd2;  // 파일 용 fd
+	char c1, c2;  // 문자 저장
+	int len1, len2;  // 파일 길이
 
-	fd1 = open(file1, O_RDONLY);
-	fd2 = open(file2, O_RDONLY);
+	fd1 = open(file1, O_RDONLY);  // stuDir/id/20.stdout 열기
+	fd2 = open(file2, O_RDONLY);  // ansDir/20.stdout 열기
 
 	while(1)
 	{
-		while((len1 = read(fd1, &c1, 1)) > 0){
-			if(c1 == ' ') 
+		while((len1 = read(fd1, &c1, 1)) > 0){  // 읽은 문자가 있다면
+			if(c1 == ' ')  // 공백이면 패스
 				continue;
 			else 
 				break;
 		}
-		while((len2 = read(fd2, &c2, 1)) > 0){
-			if(c2 == ' ') 
+		while((len2 = read(fd2, &c2, 1)) > 0){  // 읽은 문자가 있다면
+			if(c2 == ' ')  // 공백이면 패스
 				continue;
 			else 
 				break;
 		}
 
-		if(len1 == 0 && len2 == 0)
+		if(len1 == 0 && len2 == 0)  // 둘 다 실행 결과가 없으면 종료
 			break;
 
-		to_lower_case(&c1);
-		to_lower_case(&c2);
+		to_lower_case(&c1);  // 소문자로 변환
+		to_lower_case(&c2);  // 소문자로 변환
 
-		if(c1 != c2){
-			close(fd1);
-			close(fd2);
-			return false;
+		if(c1 != c2){  // 읽은 문자가 다르면 오답
+			close(fd1);  // 파일 닫기
+			close(fd2);  // 파일 닫기
+			return false;  // 오답
 		}
 	}
-	close(fd1);
-	close(fd2);
-	return true;
+	close(fd1);  // 파일 닫기
+	close(fd2);  // 파일 닫기
+	return true;  // 정답
 }
 
-/* should i replace system(command) ? */
+/* compile_program()에서 호출됨 ex) gcc -o 20_error.txt 20.c -lpthread */
+/* system(command)는 gcc라 수정 아닐듯. */
+/* old에 출력되는 command 수행 내용을 new에 출력한다. ex) 컴파일 에러를 error.txt에 쓰기 */
+/* command : 명령어, new : fd, old : STDERR */
 void redirection(char *command, int new, int old)
 {
 	int saved;
 
-	saved = dup(old);
-	dup2(new, old);
+	saved = dup(old);  // old가 가리키는 파일 구조체 저장
+	dup2(new, old);  // old가 new를 가리킴. STDERR가 error.txt를 가리킴
 
-	system(command);
+	system(command);  // gcc 에러는 표준에러 STDERR->error.txt에 출력
 
-	dup2(saved, old);
+	dup2(saved, old);  // old 복구
 	close(saved);
 }
 
