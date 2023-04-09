@@ -16,3 +16,4 @@ ssu_score.o: ssu_score.c
 
 clean:
 	rm *.o
+	rm *.txt

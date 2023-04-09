@@ -78,4 +78,8 @@ void sort_idTable(int size);
 void sort_scoreTable(int size);
 void get_qname_number(char *qname, int *num1, int *num2);
 
+// made by me below
+char *to_abs_path(char *path);  // make abs_path
+void do_eOption();  // do -e option
+
 #endif

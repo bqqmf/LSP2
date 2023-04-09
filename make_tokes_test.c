@@ -1431,7 +1431,7 @@ int main() {
     char tokens[TOKEN_CNT][MINLEN]; 
 	clear_tokens(tokens);  // tokens를 0으로 초기화
 
-    char *qname = "/home/wjdghks728/Desktop/STD_DIR/1-1.txt";
+    char *qname = "/home/wjdghks728/Desktop/STD_DIR/20200001/1-1.txt";
 	fd_std = open(tmp, O_RDONLY);  // 학생 제출 파일 열기
 	strcpy(s_answer, get_answer(fd_std, s_answer));  // s_answer에 학생 답안 저장
 
@@ -1455,6 +1455,11 @@ int main() {
 	if(!make_tokens(s_answer, tokens)){  // 답안을 쪼개서 tokens에 저장
 		close(fd_std);
 		printf("오답");
+	}
+
+	int i = 0;
+	while(strcmp(tokens[i], "")) {
+		printf("%s\n", tokens[i++]);
 	}
 
     exit(0);
