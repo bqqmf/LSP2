@@ -23,7 +23,7 @@ char ansDir[BUFLEN];  // 정답 디렉토리 경로
 char errorDir[BUFLEN];
 char score_table_path[BUFLEN];  // score_table.csv path
 char threadFiles[ARGNUM][FILELEN];  // 5개까지 -lpthread option possible 
-char iIDs[ARGNUM][FILELEN];
+char iIDs[ARGNUM][FILELEN];  // using in i option
 
 int eOption = false;
 int tOption = false;
@@ -126,15 +126,15 @@ int check_option(int argc, char *argv[])
 	while((c = getopt(argc, argv, "e:thmin:")) != -1)
 	{
 		switch(c){
-			case 'e':
+			case 'e':  // make errorDir
 				eOption = true;
 				strcpy(errorDir, to_abs_path(optarg));  // save-e errorDir. let's make error dir to abs path 
 
 				if(access(errorDir, F_OK) < 0)  // errorDir not exists, mkdir
 					mkdir(errorDir, 0755);
 				else{
-					rmdirs(errorDir);
-					mkdir(errorDir, 0755);
+					rmdirs(errorDir);  // already exists, rmdir
+					mkdir(errorDir, 0755);  // mkdir
 				}
 				break;
 			case 't':  // add -lpthread option
@@ -196,31 +196,33 @@ int check_option(int argc, char *argv[])
 	return true;
 }
 
+/* called when i option */
+/* ids : iIDs */
 void do_iOption(char (*ids)[FILELEN])
 {
-	FILE *fp;
-	char tmp[BUFLEN];
-	char qname[QNUM][FILELEN];
+	FILE *fp;  // fp for score.csv
+	char tmp[BUFLEN];   
+	char qname[QNUM][FILELEN];  // save i'th question name
 	char *p, *id;
 	int i, j;
 	char first, exist;
 
-	if((fp = fopen("./score.csv", "r")) == NULL){
-		fprintf(stderr, "score.csv file doesn't exist\n");
+	if((fp = fopen("./score.csv", "r")) == NULL){  // open score.csv
+		fprintf(stderr, "score.csv file doesn't exist\n");  // catch exception
 		return;
 	}
 
 	// get qnames
 	i = 0;
-	fscanf(fp, "%s\n", tmp);
-	strcpy(qname[i++], strtok(tmp, ","));
+	fscanf(fp, "%s\n", tmp);  // read %s from score.csv, and write to tmp. maybe ,1-1.txt,1-2.txt,...,sum
+	strcpy(qname[i++], strtok(tmp, ","));  // save qname from score.csv. ex) qname[0] = 1-1.txt
 
-	while((p = strtok(NULL, ",")) != NULL)
+	while((p = strtok(NULL, ",")) != NULL)  // save rest of qnames
 		strcpy(qname[i++], p);
 
 	// print result
 	i = 0;
-	while(i++ <= ARGNUM - 1)
+	while(i++ <= ARGNUM - 1)  // last qname's element is sum. so <= ARGNUM - 1
 	{
 		exist = 0;
 		fseek(fp, 0, SEEK_SET);
@@ -663,6 +665,8 @@ double score_student(int fd, char *id)
 		}
 	}
 
+	// print score when -c option,
+	// make -c students array[SNUM]. if id in stu_array, print score
 	printf("%s is finished. score : %.2f\n", id, score);  // id 학생의 총점 출력
 
 	sprintf(tmp, "%.2f\n", score);  // tmp에 문자열로 총점 저장

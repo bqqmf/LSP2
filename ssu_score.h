@@ -1,39 +1,47 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
+// true = 1
 #ifndef true
-	#define true 1
+	#define true 1  
 #endif
+// false = 0
 #ifndef false
-	#define false 0
+	#define false 0  
 #endif
+// stdout = 1
 #ifndef STDOUT
-	#define STDOUT 1
+	#define STDOUT 1  
 #endif
+// stderr = 2
 #ifndef STDERR
 	#define STDERR 2
-#endif
+#endif 
+// .txt = 3
 #ifndef TEXTFILE
 	#define TEXTFILE 3
 #endif
+// .c = 4
 #ifndef CFILE
 	#define CFILE 4
 #endif
 #ifndef OVER
 	#define OVER 5
 #endif
+// warn = -0.1
 #ifndef WARNING
 	#define WARNING -0.1
 #endif
+// err = 0
 #ifndef ERROR
 	#define ERROR 0
 #endif
 
-#define FILELEN 128
-#define BUFLEN 1024
-#define SNUM 100
-#define QNUM 100
-#define ARGNUM 5
+#define FILELEN 128  // len of file
+#define BUFLEN 1024  // buf size
+#define SNUM 100  // max num of students
+#define QNUM 100  // max num of students
+#define ARGNUM 5  // max arg num
 
 struct ssu_scoreTable{
 	char qname[FILELEN];  // 문제 이름
