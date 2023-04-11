@@ -21,6 +21,10 @@ char id_table[SNUM][10];                         // max save 100 students's STUD
 char stuDir[BUFLEN];  // 학생 디렉토리 경로
 char ansDir[BUFLEN];  // 정답 디렉토리 경로
 char errorDir[BUFLEN];
+char currentDir[BUFLEN]; // cwd 경로. compile_program에서 사용
+char ANS_Dir[BUFLEN];  // ./ANS 경로. compile_program에서 사용
+char STD_Dir[BUFLEN];  // ./STD 경로. compile_program에서 사용
+char score_csv_path[BUFLEN];  // ./ANS/score.csv
 char score_table_path[BUFLEN];  // score_table.csv path
 char threadFiles[ARGNUM][FILELEN];  // 5개까지 -lpthread option possible 
 char iIDs[ARGNUM][FILELEN];  // using in i option
@@ -46,6 +50,10 @@ void ssu_score(int argc, char *argv[])
 	}
 
 	memset(saved_path, 0, BUFLEN);  // 배열을 0으로 초기화
+
+	create_ANS_STD_Dir();  // ./ANS, ./STD 생성
+	sprintf(score_table_path, "%s/score_table.csv", ANS_Dir);  // ./ANS/score_table.csv
+	sprintf(score_csv_path, "%s/score.csv", ANS_Dir);  // ./ANS/score.csv
 
 	// -i option 없이 ./ssu_score student_dir answer_dir 실행 시
 	if(argc >= 3 && strcmp(argv[1], "-i") != 0){  
@@ -103,7 +111,7 @@ void ssu_score(int argc, char *argv[])
 		do_mOption();
 
 	printf("grading student's test papers..\n");
-	// score_students();  // 학생들 점수 매기고 score.csv 생성
+	score_students();  // 학생들 점수 매기고 score.csv 생성
 
 	// -i 입력 시 수행
 	if(iOption)
@@ -207,7 +215,7 @@ void do_iOption(char (*ids)[FILELEN])
 	int i, j;
 	char first, exist;
 
-	if((fp = fopen("./score.csv", "r")) == NULL){  // open score.csv
+	if((fp = fopen(score_csv_path, "r")) == NULL){  // open score.csv
 		fprintf(stderr, "score.csv file doesn't exist\n");  // catch exception
 		return;
 	}
@@ -228,8 +236,8 @@ void do_iOption(char (*ids)[FILELEN])
 		fseek(fp, 0, SEEK_SET);
 		fscanf(fp, "%s\n", tmp);
 
-		while(fscanf(fp, "%s\n", tmp) != EOF){
-			id = strtok(tmp, ",");
+		while(fscanf(fp, "%s\n", tmp) != EOF){  // read qname 1 by 1
+			id = strtok(tmp, ",");  // get next qname
 
 			if(!strcmp(ids[i - 1], id)){
 				exist = 1;
@@ -559,13 +567,15 @@ void get_qname_number(char *qname, int *num1, int *num2)
 		*num2 = atoi(p);     // save sub num
 }
 
+/* make_scoreTable에서 호출됨 */
+/* return : 문제 배점 방식 리턴 */
 int get_create_type()
 {
 	int num;
 
 	while(1)
 	{
-		printf("score_table.csv file doesn't exist in TREUDIR!\n");
+		printf("score_table.csv file doesn't exist in %s/ANS!\n", currentDir);
 		printf("1. input blank question and program question's score. ex) 0.5 1\n");
 		printf("2. input all question's score. ex) Input value of 1-1: 0.1\n");
 		printf("select type >> ");
@@ -591,7 +601,7 @@ void score_students()
 	char tmp[BUFLEN];
 	int size = sizeof(id_table) / sizeof(id_table[0]);  // id_table 크기
 
-	if((fd = creat("score.csv", 0666)) < 0){  // score.csv 생성
+	if((fd = creat(score_csv_path, 0666)) < 0){  // score.csv 생성
 		fprintf(stderr, "creat error for score.csv");  // creat 예외 처리
 		return;
 	}
@@ -739,7 +749,7 @@ int score_blank(char *id, char *filename)
 	int has_semicolon = false;  // 답안의 ; 여부
 
 	memset(qname, 0, sizeof(qname));  // qname을 0으로 초기화
-									  // 문제 이름에서 확장자 제거 ex) 1-1.txt -> 1.1
+	// 문제 이름에서 확장자 제거 ex) 1-1.txt -> 1.1
 	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));
 	// 학생이 제출한 filename의 절대 경로
 	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s", stuDir, id, filename) >= sizeof(tmp))
@@ -883,6 +893,7 @@ int is_thread(char *qname)
 }
 
 /* score_program()에서 호출됨 */
+/* 학생과 답안 .c 파일로 exe, error.txt 파일 생성 */
 /* id : 학번, filename : 채점 할 파일명 ex) 1-1.txt */
 /* return : 실수(e 옵션), true(컴파일 시 에러 x), false(컴파일 시 에러 o) */
 double compile_program(char *id, char *filename)
@@ -898,35 +909,38 @@ double compile_program(char *id, char *filename)
 	memset(qname, 0, sizeof(qname));  // qname 초기화
 	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));  // filename에서 확장자 제거
 
+
 	isthread = is_thread(qname);  // 스레드로 작업중인지 확인
 
 	// tmp_f에 정답 파일(.c)의 절대 경로 저장
 	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s", ansDir, filename) >= sizeof(tmp_f))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
-	// tmp_e에 정답 실행파일(.exe)의 절대 경로 저장
-	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s.exe", ansDir, qname) >= sizeof(tmp_e))
+	// tmp_e에 정답 실행파일(.exe)의 절대 경로 저장.
+	// ./ANS/qname.exe
+	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s.exe", ANS_Dir, qname) >= sizeof(tmp_e))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 
 	if(tOption) {  // t : -lpthread option
 		if (strlen(threadFiles[0]) == 0 || isthread) { // only -t or some files -lpthread
-													   // command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
+			// command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
 			if (snprintf(command, sizeof(command), "gcc -o %s %s -lpthread", tmp_e, tmp_f) >= sizeof(command))
 				fprintf(stderr, "buffer overflow - string is truncated\n");
 		}
-		else {
-			// command에 컴파일 명령 넣기
-			if (snprintf(command, sizeof(command), "gcc -o %s %s", tmp_e, tmp_f) >= sizeof(command))
-				fprintf(stderr, "buffer overflow - string is truncated\n");
-		}
+	}
+	else {
+		// command에 컴파일 명령 넣기
+		if (snprintf(command, sizeof(command), "gcc -o %s %s", tmp_e, tmp_f) >= sizeof(command))
+			fprintf(stderr, "buffer overflow - string is truncated\n");
 	}
 
 
 	// tmp_e에 qname_error.txt 저장
-	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s_error.txt", ansDir, qname) >= sizeof(tmp_e))
+	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s_error.txt", ANS_Dir, qname) >= sizeof(tmp_e))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 	fd = creat(tmp_e, 0666);  // ANS_DIR 아래에 20_error.txt 생성. 나중에 ANS 밑에 들어가게 바꾸기
 
-	redirection(command, fd, STDERR);  // command의 표준에러를 error.txt에 출력
+	// ansDir/qname.exe 생성, command의 표준에러를 error.txt에 출력
+	redirection(command, fd, STDERR);
 	size = lseek(fd, 0, SEEK_END);  // error.txt의 파일 크기 저장
 	close(fd);  // 파일 닫기
 	unlink(tmp_e);  // error.txt 삭제
@@ -938,23 +952,35 @@ double compile_program(char *id, char *filename)
 	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s/%s", stuDir, id, filename) >= sizeof(tmp_f))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 	// tmp_e에 id 학생이 제출한 filename의 .stdexe 절대 경로 저장
-	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s/%s.stdexe", stuDir, id, qname) >= sizeof(tmp_e))
+	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s/%s.stdexe", STD_Dir, id, qname) >= sizeof(tmp_e))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 
 	// t 옵션
-	if(tOption && isthread)
-		// command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
-		if (snprintf(command, sizeof(command), "gcc -o %s %s -lpthread", tmp_e, tmp_f) >= sizeof(command))
-			fprintf(stderr, "buffer overflow - string is truncated\n");
-		else
-			// command에 컴파일 명령 넣기
-			if (snprintf(command, sizeof(command), "gcc -o %s %s", tmp_e, tmp_f) >= sizeof(command))
+	if(tOption) {
+		if (strlen(threadFiles[0]) == 0 || isthread) { // only -t or some files -lpthread
+			// command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
+			if (snprintf(command, sizeof(command), "gcc -o %s %s -lpthread", tmp_e, tmp_f) >= sizeof(command))
 				fprintf(stderr, "buffer overflow - string is truncated\n");
+		}
+	}
+	else
+		// command에 컴파일 명령 넣기
+		if (snprintf(command, sizeof(command), "gcc -o %s %s", tmp_e, tmp_f) >= sizeof(command))
+			fprintf(stderr, "buffer overflow - string is truncated\n");
+
 
 	// tmp_f에 id 학생의 qname_error.txt 저장
-	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s/%s_error.txt", stuDir, id, qname) >= sizeof(tmp_f))
+	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s/%s_error.txt", STD_Dir, id, qname) >= sizeof(tmp_f))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 	fd = creat(tmp_f, 0666);  // stuDir/id/qname_error.txt 저장
+
+	// save STD_Dir/id
+	char STD_ID_Dir[BUFLEN];
+	if (snprintf(STD_ID_Dir, sizeof(STD_ID_Dir), "%s/%s", STD_Dir, id) >= sizeof(STD_ID_Dir))
+		fprintf(stderr, "buffer overflow - string is truncated\n");
+
+	if(access(STD_ID_Dir, F_OK) < 0)  // ./STD/id not exists, mkdir
+		mkdir(STD_ID_Dir, 0755);
 
 	redirection(command, fd, STDERR);  // command의 표준 에러를 error.txt에 출력
 	size = lseek(fd, 0, SEEK_END);  // error.txt 파일 크기 저장
@@ -1031,23 +1057,23 @@ int execute_program(char *id, char *filename)
 	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));  // filename에서 확장자 제거 후 저장
 
 	// ans_fname에 qname.stdout의 절대 경로 저장
-	if (snprintf(ans_fname, sizeof(ans_fname), "%s/%s.stdout", ansDir, qname) >= sizeof(ans_fname))
+	if (snprintf(ans_fname, sizeof(ans_fname), "%s/%s.stdout", ANS_Dir, qname) >= sizeof(ans_fname))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 	fd = creat(ans_fname, 0666);  // 답안 qname.stdout 생성
 
 	// ans_fname에 모범 답안의 qname.exe의 절대 경로 저장
-	if (snprintf(tmp, sizeof(tmp), "%s/%s.exe", ansDir, qname) >= sizeof(tmp))
+	if (snprintf(tmp, sizeof(tmp), "%s/%s.exe", ANS_Dir, qname) >= sizeof(tmp))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 	redirection(tmp, fd, STDOUT);  // qname.exe 실행 결과 출력을 qname.stdout에 저장
 	close(fd);  // qname.stdout 닫기
 
 	// std_fname에 학생의 qname.stdout의 절대 경로 저장
-	if (snprintf(std_fname, sizeof(std_fname), "%s/%s/%s.stdout", stuDir, id, qname) >= sizeof(std_fname))
+	if (snprintf(std_fname, sizeof(std_fname), "%s/%s/%s.stdout", STD_Dir, id, qname) >= sizeof(std_fname))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 	fd = creat(std_fname, 0666);  // 학생 qname.stdout 생성
 
 	// tmp에 백그라운드로 학생의 qname.stdexe 실행 저장
-	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s.stdexe &", stuDir, id, qname) >= sizeof(tmp)) 
+	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s.stdexe &", STD_Dir, id, qname) >= sizeof(tmp)) 
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 
 	start = time(NULL);  // 실행 시작 시간 저장
@@ -1237,3 +1263,17 @@ char *to_abs_path(char *path) {
 	strcat(buf, path);
 	return buf;
 }
+
+void create_ANS_STD_Dir() {
+	getcwd(currentDir, BUFLEN);  // 현재 디렉토리 경로 저장
+	strcpy(ANS_Dir, currentDir);
+	strcat(ANS_Dir, "/ANS");
+	strcpy(STD_Dir, currentDir);
+	strcat(STD_Dir, "/STD");
+
+	if(access(ANS_Dir, F_OK) < 0)  // ./ANS not exists, mkdir
+		mkdir(ANS_Dir, 0755);
+
+	if(access(STD_Dir, F_OK) < 0)  // ./STD not exists, mkdir
+		mkdir(STD_Dir, 0755);
+}	
