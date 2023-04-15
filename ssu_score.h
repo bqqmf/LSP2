@@ -90,5 +90,6 @@ void get_qname_number(char *qname, int *num1, int *num2);
 char *to_abs_path(char *path);  // make abs_path
 void do_eOption();  // do -e option
 void create_ANS_STD_Dir();  // create ./ANS, ./STD dir
+int print_with_score(char *id);  // return id is in c_opt_students.
 
 #endif
