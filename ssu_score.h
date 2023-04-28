@@ -42,6 +42,7 @@
 #define SNUM 100  // max num of students
 #define QNUM 100  // max num of students
 #define ARGNUM 5  // max arg num
+#define IDLEN     // STUDENT_ID len
 
 struct ssu_scoreTable{
 	char qname[FILELEN];  // 문제 이름
@@ -65,7 +66,7 @@ pid_t inBackground(char *name);
 double check_error_warning(char *filename);
 int compare_resultfile(char *file1, char *file2);
 
-void do_iOption(char (*ids)[FILELEN]);
+void do_iOption(char (*ids)[IDLEN]);
 void do_mOption();
 int is_exist(char (*src)[FILELEN], char *target);
 
@@ -87,10 +88,30 @@ void sort_scoreTable(int size);
 void get_qname_number(char *qname, int *num1, int *num2);
 
 // made by me below
+typedef struct Q_node Q_node;
+typedef struct ID_node ID_node;
+struct Q_node {
+	Q_node *next;
+	char qname[FILELEN];
+};
+struct ID_node {
+	ID_node *next;
+	Q_node *child;
+	char id[IDLEN];
+};
+
+
 char *to_abs_path(char *path);  // make abs_path
 void do_eOption();  // do -e option
 void create_ANS_STD_Dir();  // create ./ANS, ./STD dir
 int print_with_score(char *id);  // return id is in c_opt_students.
-int getStudentIDs(char IDlist[100][10]);  // save IDs in STD_DIR to IDlist and return num of students
+int getStudentIDs(char (*IDlist)[IDLEN]);  // save IDs in STD_DIR to IDlist and return num of students
+void sort_2Darray(char (*arr)[], int size);  // sort 2D array. to sort iIDs
+
+// linked list func in pOption
+void print_pOption(char *id);  // print id's wrong qname and baejum
+ID_node *create_id_node(char *id);  // create id node
+void add_id_node(ID_node *new);  // add node
+
 
 #endif

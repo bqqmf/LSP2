@@ -19,7 +19,7 @@
 /* only child_head can access parent node */
 /* LCRS tree by double linked list        */
 typedef struct node{
-	int parentheses;		  /* maybe ( ) flag?    */
+	int parentheses;		  /* ( ) flag           */
 	char *name;				  /* node's name		*/
 	struct node *parent;      /* point parent node  */
 	struct node *child_head;  /* point child's head */

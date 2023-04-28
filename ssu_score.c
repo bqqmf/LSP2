@@ -28,7 +28,10 @@ char score_csv_path[BUFLEN];  // ./ANS/score.csv
 char score_table_path[BUFLEN];  // score_table.csv path
 char threadFiles[ARGNUM][FILELEN];  // 5개까지 -lpthread option possible 
 char c_opt_students[ARGNUM][10];  // using in c option. print with score
-char iIDs[ARGNUM][FILELEN];  // using in i option
+char iIDs[SNUM][10];  // using in i option
+
+ID_node *pHEAD;  // using in p option. head of Q_nodes
+ID_node *pREAR;  // using in p option. rear of Q_nodes
 
 int eOption = false;
 int tOption = false;
@@ -179,14 +182,22 @@ int check_option(int argc, char *argv[])
 				i = optind;
 				j = 0;
 
+				memset(iIDs[0], 0, 10);  // init iIDs[0] to 0
+
 				while(i < argc && argv[i][0] != '-'){
-					if(j >= ARGNUM)
+					if(j >= ARGNUM)  // max 5 args
 						printf("Maximum Number of Argument Exceeded. :: %s\n", argv[i]);
 					else
-						strcpy(iIDs[j], argv[i]);
+						strcpy(iIDs[j], argv[i]);  // save STDUENT_ID to iIDs;
 					i++;
 					j++;
 				}
+
+				if (iIDs[0][0] == 0) { // no argument with -i
+					int size = getStudentIDs(iIDs);  // save all STUDENT_ID to iIDs 
+					sort_2Darray(iIDs, size);
+				}
+
 				break;
 			case 'n':
 				nOption = true;
@@ -246,7 +257,7 @@ int check_option(int argc, char *argv[])
 
 /* called when i option */
 /* ids : iIDs */
-void do_iOption(char (*ids)[FILELEN])
+void do_iOption(char (*ids)[10])
 {
 	FILE *fp;  // fp for score.csv
 	char tmp[BUFLEN];   
@@ -270,14 +281,14 @@ void do_iOption(char (*ids)[FILELEN])
 
 	// print result
 	i = 0;
-	while(i++ <= ARGNUM - 1)  // last qname's element is sum. so <= ARGNUM - 1
+	while(ids[i++][0] != 0)  // num of iIDs
 	{
 		exist = 0;
-		fseek(fp, 0, SEEK_SET);
-		fscanf(fp, "%s\n", tmp);
+		fseek(fp, 0, SEEK_SET);  // move offset to head
+		fscanf(fp, "%s\n", tmp);  // discard first row 
 
-		while(fscanf(fp, "%s\n", tmp) != EOF){  // read qname 1 by 1
-			id = strtok(tmp, ",");  // get next qname
+		while(fscanf(fp, "%s\n", tmp) != EOF){  // read one line from score.csv (some students's ID and scores)
+			id = strtok(tmp, ",");  // save STUDENT_ID to id
 
 			if(!strcmp(ids[i - 1], id)){
 				exist = 1;
@@ -288,13 +299,25 @@ void do_iOption(char (*ids)[FILELEN])
 						if(!first){
 							printf("%s's wrong answer :\n", id);
 							first = 1;
+
+							// add to linked list
+							ID_node *cur = create_id_node(id);
+							if (pHEAD == NULL) pHEAD = cur;
+							add_id_node(cur);
 						}
-						if(strcmp(qname[j], "sum"))
+						if(strcmp(qname[j], "sum")) {
 							printf("%s    ", qname[j]);
+
+							// add qnodes to ID_node
+							// Q_node *cur = create_q_node(qname[j], baejum[j]);	
+							// parent = find_id_node_by_id(id);
+							// add_q_node(parent); 
+						}
 					}
 					j++;
 				}
 				printf("\n");
+				break;  // after print wrong qnames, break;
 			}
 		}
 
@@ -717,11 +740,22 @@ double score_student(int fd, char *id)
 
 	// print score when -c option,
 	if (cOption) {
-		if (strlen(c_opt_students[0]) == 0 || print_with_score(id))
+		if (strlen(c_opt_students[0]) == 0 || print_with_score(id)) {
 			printf("%s is finished. score : %.2f\n", id, score);  // id 학생의 총점 출력
-		else
+			if (iOption) {
+				// print linked list
+			}
+		}
+		else {
 			printf("%s is finished.\n", id);  // grading complete 
+			if (iOption) {
+				// print linked list
+			}
+		}
 	}
+	else if (iOption)
+		// print linked list
+		print_pOption(id);
 	else
 		printf("%s is finished.\n", id);  // grading complete 
 
@@ -1345,7 +1379,7 @@ int print_with_score(char *id) {
 /* called from check_option's case c */
 /* IDlist : array to save STUDENT_ID in STD_DIR */
 /* return : num of students in STD_DIR */
-int getStudentIDs(char IDlist[SNUM][10]) {
+int getStudentIDs(char (*IDlist)[10]) {
 	int num = 0;
 
 	DIR *dir;
@@ -1376,4 +1410,35 @@ int getStudentIDs(char IDlist[SNUM][10]) {
 		}
 	}
 	return num;
+}
+
+/* 학번 기준으로 id_table 정렬 */
+/* size : 학생 수 */
+void sort_2Darray(char (*arr)[10], int size)  
+{
+	int i, j;  // 정렬에 쓰이는 인덱스
+	char tmp[10];  // 학번 임시 저장
+
+	for(i = 0; i < size - 1; i++){
+		for(j = 0; j < size - 1 -i; j++){
+			if(strcmp(arr[j], arr[j+1]) > 0){  // j의 학번이 더 높다면
+				strcpy(tmp, arr[j]);  // j의 학번을 tmp에 저장
+				strcpy(arr[j], arr[j+1]);  // j+1의 학번을 j에 저장
+				strcpy(arr[j+1], tmp);  // tmp의 학번을 j+1에 저장
+			}
+		}
+	}
+}
+
+/* called from score_student */
+/* print qname(baejum) by id */
+/* id : STUDENT_ID */
+void print_pOption(char *id) {
+}
+
+ID_node *create_id_node(char *id) {
+}
+
+void add_id_node(ID_node *new) {
+
 }
