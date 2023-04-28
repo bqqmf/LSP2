@@ -182,13 +182,13 @@ void compare_tree(node *root1,  node *root2, int *result)
 /* str : 학생 제출 답안, tokens : 토큰 저장 변수 */
 int make_tokens(char *str, char tokens[TOKEN_CNT][MINLEN])
 {
-	char *start, *end;
-	char tmp[BUFLEN];
+	char *start, *end;  // primary pointer to str
+	char tmp[BUFLEN];  // save op temporary
 	char str2[BUFLEN];
 	char *op = "(),;><=!|&^/+-*\"";  // 연산자들
 	int row = 0;  // 현재 저장한 토큰 수
 	int i;
- 	int isPointer;
+ 	int isPointer;  // current token is pointer type
 	int lcount, rcount;  // (, ) 개수
 	int p_str;
 	
@@ -215,7 +215,7 @@ int make_tokens(char *str, char tokens[TOKEN_CNT][MINLEN])
 				// ex) ++a
 				if(is_character(*ltrim(start + 2))){  // if char behind ++ [0-9a-zA-Z]
 					if(row > 0 && is_character(tokens[row - 1][strlen(tokens[row - 1]) - 1]))
-						return false; //ex) ++a++
+						return false; //ex) ++a++? a ++ a
 
 					end = strpbrk(start + 2, op);  // find next op after ++
 					if(end == NULL)  // there's no op excepts for front ++
@@ -230,21 +230,21 @@ int make_tokens(char *str, char tokens[TOKEN_CNT][MINLEN])
 					}
 				}
 				// ex) a++
-				else if(row>0 && is_character(tokens[row - 1][strlen(tokens[row - 1]) - 1])){  // 
-					if(strstr(tokens[row - 1], "++") != NULL || strstr(tokens[row - 1], "--") != NULL)	
-						return false;
+				else if(row>0 && is_character(tokens[row - 1][strlen(tokens[row - 1]) - 1])){  // not first token and prev token is [0-9a-zA-Z]
+					if(strstr(tokens[row - 1], "++") != NULL || strstr(tokens[row - 1], "--") != NULL)	// if prev token has ++ or --
+						return false;  // ++ a ++ is error
 
-					memset(tmp, 0, sizeof(tmp));
-					strncpy(tmp, start, 2);
-					strcat(tokens[row - 1], tmp);
-					start += 2;
-					row--;
+					memset(tmp, 0, sizeof(tmp));  // clear tmp
+					strncpy(tmp, start, 2);  // save ++ or -- in tmp
+					strcat(tokens[row - 1], tmp);  // attach tmp to prev token
+					start += 2;  // inc start index
+					row--;  // point prev token
 				}
 				else{
-					memset(tmp, 0, sizeof(tmp));
-					strncpy(tmp, start, 2);
-					strcat(tokens[row], tmp);
-					start += 2;
+					memset(tmp, 0, sizeof(tmp));  // clear tmp
+					strncpy(tmp, start, 2);  // save ++ or -- in tmp
+					strcat(tokens[row], tmp);  // attach tmp to prev token
+					start += 2;  // inc start index
 				}
 			}
 
@@ -301,55 +301,55 @@ int make_tokens(char *str, char tokens[TOKEN_CNT][MINLEN])
 			}
 		  	else if(*end == '*')  // 연산자가 *이라면
 			{
-				isPointer=0;
+				isPointer=0;  // save either token is pointer
 
-				if(row > 0)
+				if(row > 0)  // not first token
 				{
 					//ex) char** (pointer)
-					for(i = 0; i < DATATYPE_SIZE; i++) {
-						if(strstr(tokens[row - 1], datatype[i]) != NULL){
-							strcat(tokens[row - 1], "*");
-							start += 1;	
-							isPointer = 1;
+					for(i = 0; i < DATATYPE_SIZE; i++) { 
+						if(strstr(tokens[row - 1], datatype[i]) != NULL){  // ex) int*, char*, ...
+							strcat(tokens[row - 1], "*");  // attach
+							start += 1;	 // inc start
+							isPointer = 1;  // current token is pointer
 							break;
 						}
 					}
-					if(isPointer == 1)
+					if(isPointer == 1)  // if current token is pointer type, check next token
 						continue;
-					if(*(start+1) !=0)
-						end = start + 1;
+					if(*(start+1) !=0)  // if ' ' next to *
+						end = start + 1;  // end points from ' ' to end of str
 
 					// ex) a * **b (multiply then pointer)
-					if(row>1 && !strcmp(tokens[row - 2], "*") && (all_star(tokens[row - 1]) == 1)){
-						strncat(tokens[row - 1], start, end - start);
-						row--;
+					if(row>1 && !strcmp(tokens[row - 2], "*") && (all_star(tokens[row - 1]) == 1)){  // mul with multiple pointer
+						strncat(tokens[row - 1], start, end - start);  // attach *
+						row--;  // dec row to complete rest of token
 					}
 					
 					// ex) a*b(multiply)
-					else if(is_character(tokens[row - 1][strlen(tokens[row - 1]) - 1]) == 1){ 
-						strncat(tokens[row], start, end - start);   
+					else if(is_character(tokens[row - 1][strlen(tokens[row - 1]) - 1]) == 1){  // prev token is [0-9a-zA-Z] and op == *
+						strncat(tokens[row], start, end - start);  // attach * to token
 					}
 
 					// ex) ,*b (pointer)
-					else if(strpbrk(tokens[row - 1], op) != NULL){		
-						strncat(tokens[row] , start, end - start); 
+					else if(strpbrk(tokens[row - 1], op) != NULL){  // if prev token has op	
+						strncat(tokens[row] , start, end - start);  // attatch * to token
 							
 					}
 					else
-						strncat(tokens[row], start, end - start);
+						strncat(tokens[row], start, end - start);  // attach end to token
 
-					start += (end - start);
+					start += (end - start);  // start point next token
 				}
 
-			 	else if(row == 0)
+			 	else if(row == 0)  // first token
 				{
-					if((end = strpbrk(start + 1, op)) == NULL){
-						strncat(tokens[row], start, 1);
-						start += 1;
+					if((end = strpbrk(start + 1, op)) == NULL){  // no op after current *
+						strncat(tokens[row], start, 1);  // attach * to tokens
+						start += 1;  // inc start
 					}
-					else{
+					else{  // there's op after current *
 						while(start < end){
-							if(*(start - 1) == ' ' && is_character(tokens[row][strlen(tokens[row]) - 1]))
+							if(*(start - 1) == ' ' && is_character(tokens[row][strlen(tokens[row]) - 1]))  // c
 								return false;
 							else if(*start != ' ')
 								strncat(tokens[row], start, 1);
