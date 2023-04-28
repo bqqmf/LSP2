@@ -91,5 +91,6 @@ char *to_abs_path(char *path);  // make abs_path
 void do_eOption();  // do -e option
 void create_ANS_STD_Dir();  // create ./ANS, ./STD dir
 int print_with_score(char *id);  // return id is in c_opt_students.
+int getStudentIDs(char IDlist[100][10]);  // save IDs in STD_DIR to IDlist and return num of students
 
 #endif

@@ -116,7 +116,7 @@ void ssu_score(int argc, char *argv[])
 		do_mOption();
 
 	printf("grading student's test papers..\n");
-	score_students();  // 학생들 점수 매기고 score.csv 생성
+	//score_students();  // 학생들 점수 매기고 score.csv 생성
 
 
 	// -i 입력 시 수행
@@ -204,12 +204,31 @@ int check_option(int argc, char *argv[])
 				i = optind;
 				j = 0;  // index of c_opt_students 
 
+				// make <STD_DIR>'s sub ID_list
+				// using scandir, ans_path
+				char STD_ID_list[SNUM][10];  // save STUDENT_IDs in STD_DIR
+				int stu_num = getStudentIDs(STD_ID_list);  // save students num
+
 				while(i < argc && argv[i][0] != '-'){
 
 					if(j >= ARGNUM)  // catch exception
 						printf("Maximum Number of Argument Exceeded.  :: %s\n", argv[i]);
 					else{
-						strcpy(c_opt_students[j], argv[i]);  // add STD_ID to c_opt_students 
+						// check if argv[i] in ID_list
+						int exists = 0;
+						for (int k=0; k<stu_num; k++) {
+							if (!strcmp(STD_ID_list[k], argv[i])) {  // check either STUDENT_ID in STD_DIR
+									exists = 1;
+									break;
+							}
+						}
+
+						if (exists)
+							strcpy(c_opt_students[j], argv[i]);  // add STD_ID to c_opt_students 
+						else {
+							fprintf(stderr, "%s doesn't exist in %s\n", argv[i], stuDir);  // if STUDENT_ID not in STD_DIR
+							exit(1);  // catch error
+						}
 					}
 					i++; 
 					j++;
@@ -780,7 +799,7 @@ int score_blank(char *id, char *filename)
 	int has_semicolon = false;  // 답안의 ; 여부
 
 	memset(qname, 0, sizeof(qname));  // qname을 0으로 초기화
-									  // 문제 이름에서 확장자 제거 ex) 1-1.txt -> 1.1
+	// 문제 이름에서 확장자 제거 ex) 1-1.txt -> 1.1
 	memcpy(qname, filename, strlen(filename) - strlen(strrchr(filename, '.')));
 	// 학생이 제출한 filename의 절대 경로
 	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s", stuDir, id, filename) >= sizeof(tmp))
@@ -953,7 +972,7 @@ double compile_program(char *id, char *filename)
 
 	if(tOption) {  // t : -lpthread option
 		if (strlen(threadFiles[0]) == 0 || isthread) { // only -t or some files -lpthread
-													   // command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
+			// command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
 			if (snprintf(command, sizeof(command), "gcc -o %s %s -lpthread", tmp_e, tmp_f) >= sizeof(command))
 				fprintf(stderr, "buffer overflow - string is truncated\n");
 		} else {
@@ -993,7 +1012,7 @@ double compile_program(char *id, char *filename)
 	// t 옵션
 	if(tOption) {
 		if (strlen(threadFiles[0]) == 0 || isthread) { // only -t or some files -lpthread
-													   // command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
+			// command에 컴파일 명령 넣기. -lpthread : pthread 라이브러리 사용 시 컴파일 옵션
 			if (snprintf(command, sizeof(command), "gcc -o %s %s -lpthread", tmp_e, tmp_f) >= sizeof(command))
 				fprintf(stderr, "buffer overflow - string is truncated\n");
 		}
@@ -1321,4 +1340,40 @@ int print_with_score(char *id) {
 
 	// cannot find
 	return 0;
+}
+
+/* called from check_option's case c */
+/* IDlist : array to save STUDENT_ID in STD_DIR */
+/* return : num of students in STD_DIR */
+int getStudentIDs(char IDlist[SNUM][10]) {
+	int num = 0;
+
+	DIR *dir;
+	struct dirent *dirp;
+	struct stat statbuf;
+
+	if ((dir = opendir(stuDir)) == NULL) {
+		fprintf(stderr, "opendir error for %s\n", stuDir);
+		exit(1);
+	}
+
+	while ((dirp = readdir(dir)) != NULL) {
+		if (!strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))
+			continue;
+
+		char fullpath[BUFLEN];
+		memset(fullpath, 0, BUFLEN);
+		strcat(fullpath, stuDir);
+		strcat(fullpath, "/");
+		strcat(fullpath, dirp->d_name);
+
+		if (lstat(fullpath, &statbuf) < 0) {
+			fprintf(stderr, "lstat error for %s\n", fullpath);
+			exit(1);
+		}
+		if (S_ISDIR(statbuf.st_mode)) {
+			strcpy(IDlist[num++], dirp->d_name);
+		}
+	}
+	return num;
 }
