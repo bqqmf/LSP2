@@ -66,7 +66,7 @@ pid_t inBackground(char *name);
 double check_error_warning(char *filename);
 int compare_resultfile(char *file1, char *file2);
 
-void do_iOption(char (*ids)[IDLEN]);
+void do_pOption(char (*ids)[IDLEN], char *target_id);
 void do_mOption();
 int is_exist(char (*src)[FILELEN], char *target);
 
@@ -90,16 +90,20 @@ void get_qname_number(char *qname, int *num1, int *num2);
 // made by me below
 typedef struct Q_node Q_node;
 typedef struct ID_node ID_node;
+typedef struct sorted_node sorted_node;
 struct Q_node {
-	Q_node *next;
-	char qname[FILELEN];
+	Q_node *next;     // 다음 문제 노드
+	double result;    // 채점 결과
+	double score;     // 배점
+	char qname[128];  // 문제 이름
 };
 struct ID_node {
-	ID_node *next;
-	Q_node *child;
-	char id[IDLEN];
+	ID_node *next;  // 다음 학생 노드
+	Q_node *child;  // 학생의 첫 문제 노드
+	int sorted;     // 정렬 여부
+	double score;   // 총점 
+	char id[10];    // 학번
 };
-
 
 char *to_abs_path(char *path);  // make abs_path
 void do_eOption();  // do -e option
@@ -112,6 +116,14 @@ void sort_2Darray(char (*arr)[], int size);  // sort 2D array. to sort iIDs
 void print_pOption(char *id);  // print id's wrong qname and baejum
 ID_node *create_id_node(char *id);  // create id node
 void add_id_node(ID_node *new);  // add node
-
+Q_node *create_q_node(char *qname, double result, double score);
+void add_q_node(ID_node *parent, Q_node *new);
+ID_node *find_node_by_id(char *id);
+void free_id_node();
+void free_q_node(Q_node *del);
+int in_iIDs(char *id);
+int in_c_students(char *id);
+void do_sOption();
+void sort_linked_list();
 
 #endif
