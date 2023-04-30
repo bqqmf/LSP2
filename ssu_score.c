@@ -63,10 +63,13 @@ void ssu_score(int argc, char *argv[])
 	memset(saved_path, 0, BUFLEN);  // 배열을 0으로 초기화
 
 	create_ANS_STD_Dir();  // ./ANS, ./STD 생성
+
+	getcwd(saved_path, BUFLEN);  // saved_path에 현재 작업 디렉토리 저장
+
 	if (snprintf(score_table_path, sizeof(score_table_path), "%s/score_table.csv", ANS_Dir) > sizeof(score_table_path))  // ./ANS/score_table.csv
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 
-	if (snprintf(score_csv_path, sizeof(score_csv_path), "%s/score.csv", ANS_Dir) > sizeof(score_csv_path))  // ./ANS/score.csv
+	if (snprintf(score_csv_path, sizeof(score_csv_path), "%s/score.csv", saved_path) > sizeof(score_csv_path))  // ./ANS/score.csv
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 
 	// -i option 없이 ./ssu_score student_dir answer_dir 실행 시
@@ -101,7 +104,6 @@ void ssu_score(int argc, char *argv[])
 	   }
 	 */
 
-	getcwd(saved_path, BUFLEN);  // saved_path에 현재 작업 디렉토리 저장
 
 	// 학생 디렉토리로 디렉토리 변경
 	if(chdir(stuDir) < 0){
@@ -135,8 +137,8 @@ void ssu_score(int argc, char *argv[])
 	printf("grading student's test papers..\n");
 	score_students();  // 학생들 점수 매기고 score.csv 생성
 
-	// print score_table's path
-	printf("result saved.. (%s)\n", score_table_path);
+	// print score_csv's path
+	printf("result saved.. (%s)\n", score_csv_path);
 	if (eOption)  // print errorDir path
 		do_eOption();
 
@@ -232,14 +234,32 @@ int check_option(int argc, char *argv[])
 				break;
 			case 'n':
 				nOption = true;
-				strcpy(score_table_path, to_abs_path(optarg));  // save abs path new score_table.csv
+				strcpy(score_csv_path, to_abs_path(optarg));  // save abs path new score_table.csv
 				char *extension = strrchr(optarg, '.');  // check .csv
 				if (strcmp(extension, ".csv")) {
 					fprintf(stderr, "not .csv file\n");
 					exit(1);
 				}
-				if (access(score_table_path, F_OK) == 0)  // if new score_table.csv exists,
-					unlink(score_table_path);  // remove old csv
+
+				char tmpdir[BUFLEN];
+				strcpy(tmpdir, score_csv_path);
+				tmpdir[strlen(tmpdir) - strlen(strrchr(tmpdir, '/'))] = 0;
+
+				char mkpath[BUFLEN];
+				strcat(mkpath, "/");
+				memset(mkpath, 0, BUFLEN);
+				char *dir;
+				dir = strtok(tmpdir, "/");
+
+				while (dir != NULL) {
+				strcat(mkpath, "/");
+					strcat(mkpath, dir);
+					mkdir(mkpath, 0755);
+					dir = strtok(NULL, "/");
+				}
+				
+				if (access(score_csv_path, F_OK) == 0)  // if new score_table.csv exists,
+					unlink(score_csv_path);  // remove old csv
 				break;
 			case 'c':
 				cOption = true;
@@ -573,6 +593,7 @@ void write_scoreTable(char *filename)
 	int i;
 	int num = sizeof(score_table) / sizeof(score_table[0]);  // 정답 파일 수
 
+
 	if((fd = creat(filename, 0666)) < 0){  // score_table.csv 생성
 		fprintf(stderr, "creat error for %s\n", filename);  // creat 예외 처리 후 종료
 		return;
@@ -699,7 +720,7 @@ int get_create_type()
 
 	while(1)
 	{
-		printf("score_table.csv file doesn't exist in %s/ANS!\n", currentDir);
+		printf("score_table.csv file doesn't exist in %s/ANS !\n", currentDir);
 		printf("1. input blank question and program question's score. ex) 0.5 1\n");
 		printf("2. input all question's score. ex) Input value of 1-1: 0.1\n");
 		printf("select type >> ");
@@ -725,8 +746,9 @@ void score_students()
 	char tmp[BUFLEN];
 	int size = sizeof(id_table) / sizeof(id_table[0]);  // id_table 크기
 
+
 	if((fd = creat(score_csv_path, 0666)) < 0){  // score.csv 생성
-		fprintf(stderr, "creat error for score.csv");  // creat 예외 처리
+		fprintf(stderr, "creat error for %s\n", score_csv_path);  // creat 예외 처리
 		return;
 	}
 	write_first_row(fd);  // score.csv에 첫번째 행 추가. 문제 번호들과 합계가 적힘
