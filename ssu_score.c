@@ -34,7 +34,9 @@ int is_ASC = 0;  // using in s option
 
 ID_node *pHEAD;  // using in p option. head of Q_nodes
 ID_node *pREAR;  // using in p option. rear of Q_nodes
-ID_node *sorted_list[SNUM];  // using in s option.
+				 //ID_node *sorted_list[SNUM];  // using in s option.
+sorted_node *sHEAD;
+sorted_node *sREAR;
 
 int eOption = false;
 int tOption = false;
@@ -787,27 +789,27 @@ double score_student(int fd, char *id)
 		}
 
 		// make linked list
-		Q_node *q_node = create_q_node(score_table[i].qname, result, score_table[i].score);
-		add_q_node(id_node, q_node);
+		Q_node *q_node;
 
 		if(result == false) { // 학생의 답안이 오답이라면
 			write(fd, "0,", 2);  // 0점 처리
+			q_node = create_q_node(score_table[i].qname, 0.0, score_table[i].score);
 		}
 		else{  // 오답이 아니라면
 			if(result == true){  // 정답이라면
 				score += score_table[i].score;  // i번째 문제의 배점을 총점에 더하기
 				sprintf(tmp, "%.2f,", score_table[i].score);  // tmp에 배점 저장
+				q_node = create_q_node(score_table[i].qname, score_table[i].score, score_table[i].score);
 			}
 			else if(result < 0){  // 감점을 고려해서 감점 값인 음수를 리턴
 				score = score + score_table[i].score + result;  // 총점 + 배점 - 감점
 				sprintf(tmp, "%.2f,", score_table[i].score + result);  // tmp에 총점 저장
+				q_node = create_q_node(score_table[i].qname, score_table[i].score + result, score_table[i].score);
 			}
 
-
 			write(fd, tmp, strlen(tmp));  // score.csv에 학생의 점수 쓰기
-
-
 		}
+		add_q_node(id_node, q_node);
 	}
 
 	if (cOption && pOption) {
@@ -1603,14 +1605,19 @@ int in_c_students(char *id) {
 void do_sOption() {
 	sort_linked_list();
 
-	for (int i=0; sorted_list[i] != NULL; i++) {
-		printf("%s\n", sorted_list[i]->id);
-	}
+	iter_sorted_nodes();
+	/*
+	   int i = 0;
+	   for (int i=0; sorted_list[i] != NULL; i++) {
+	   printf("%s, %lf\n", sorted_list[i]->id, sorted_list[i]->score);
+	   }
+	 */
 }
 
 void sort_linked_list() {
-
-	for (int i=0; !strcmp(id_table[i], ""); i++) {
+	int i = 0;
+	ID_node *iter = pHEAD;
+	while (iter != NULL) {
 		ID_node *cur = pHEAD;  // 순회에 쓰이는 노드
 		ID_node *tmp = pHEAD;  // 조건을 만족하는 노드를 가리킴
 
@@ -1619,20 +1626,21 @@ void sort_linked_list() {
 		tmp = cur;  // 첫 sorted가 아닌 노드
 		if (!strcmp(category, "stdid")) {
 			if (is_ASC == 1) {
-				
+
 				while (cur != NULL) {  // find least id node
 					if (cur->sorted) {  // sorted node 건너뛰기
 						cur = cur->next;
 						continue;
 					}
-					
+
 					if (strcmp(cur->id, tmp->id) <= 0)
 						tmp = cur;
 					cur = cur->next;
 				}
 
 				tmp->sorted = 1;
-				sorted_list[i] = tmp;
+				//sorted_list[i++] = tmp;
+				add_id_node2(tmp);
 			}
 			else { 
 				while (cur != NULL) {  // find least id node
@@ -1647,17 +1655,95 @@ void sort_linked_list() {
 				}
 
 				tmp->sorted = 1;
-				sorted_list[i] = tmp;
+				//sorted_list[i++] = tmp;
+				add_id_node2(tmp);
 			}
 		} else {
 			if (is_ASC == 1) {
-				tmp->score = 9999;
+				while (cur != NULL) {  // find least id node
+					if (cur->sorted) {  // sorted node 건너뛰기
+						cur = cur->next;
+						continue;
+					}
 
+					if (cur->score <= tmp->score)
+						tmp = cur;
+					cur = cur->next;
+				}
+
+				tmp->sorted = 1;
+				//sorted_list[i++] = tmp;
+				add_id_node2(tmp);
 			}
 			else {
-				tmp->score = -100;
+				while (cur != NULL) {  // find least id node
+					if (cur->sorted) {  // sorted node 건너뛰기
+						cur = cur->next;
+						continue;
+					}
 
+					if (cur->score >= tmp->score)
+						tmp = cur;
+					cur = cur->next;
+				}
+
+				tmp->sorted = 1;
+				//sorted_list[i++] = tmp;
+				add_id_node2(tmp);
 			}
 		}
+		iter = iter->next;
 	}
+}
+
+void add_id_node2(ID_node *new) {
+	sorted_node *cur = (sorted_node *) malloc(sizeof(sorted_node));
+	cur->child = new;
+	if (sHEAD == NULL) {
+		sHEAD = cur;
+		sREAR = cur;
+		cur->next = NULL;
+		return;
+	}
+
+	sREAR->next = cur;
+	sREAR = cur;	
+}
+
+void iter_sorted_nodes() {
+	sorted_node *cur = sHEAD;
+
+	int fd;
+	if ((fd = open(score_csv_path, O_CREAT | O_WRONLY | O_TRUNC, 0666)) < 0) {
+		fprintf(stderr, "open error for %s\n", score_csv_path);
+		exit(1);
+	}
+
+	char tmp[BUFLEN];
+
+	write_first_row(fd);  // score.csv에 첫번째 행 추가. 문제 번호들과 합계가 적힘
+
+	while (cur != NULL) {
+		//printf("%s, %lf\n", cur->child->id, cur->child->score);
+		memset(tmp, 0, BUFLEN);
+		sprintf(tmp, "%s,", cur->child->id);  
+		write(fd, tmp, strlen(tmp));  // score.csv에 "학번," 쓰기
+		rewrite_score_csv(fd, cur->child);
+		cur = cur->next;
+	}
+	close(fd);
+}
+
+void rewrite_score_csv(int fd, ID_node *parent) {
+	Q_node *cur = parent->child;
+
+	char tmp[BUFLEN];
+
+	while (cur != NULL) {
+		sprintf(tmp, "%.2f,", cur->result);  
+		write(fd, tmp, strlen(tmp));
+		cur = cur->next;
+	}
+	sprintf(tmp, "%.2f\n", parent->score);  // tmp에 문자열로 총점 저장
+	write(fd, tmp, strlen(tmp));  // 총점 score.csv에 쓰기
 }

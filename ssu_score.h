@@ -104,6 +104,10 @@ struct ID_node {
 	double score;   // 총점 
 	char id[10];    // 학번
 };
+struct sorted_node {
+	ID_node *child;
+	sorted_node *next;
+};
 
 char *to_abs_path(char *path);  // make abs_path
 void do_eOption();  // do -e option
@@ -125,5 +129,8 @@ int in_iIDs(char *id);
 int in_c_students(char *id);
 void do_sOption();
 void sort_linked_list();
+void add_id_node2(ID_node *new);
+void iter_sorted_nodes();
+void rewrite_score_csv(int fd, ID_node *parent);
 
 #endif
