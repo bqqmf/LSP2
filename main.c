@@ -21,6 +21,7 @@ int main(int argc, char *argv[])
 	exit(0);
 }
 
+/* begin_t와 end_t 사이 걸린 시간 출력 */
 void ssu_runtime(struct timeval *begin_t, struct timeval *end_t)
 {
 	end_t->tv_sec -= begin_t->tv_sec;  // calculate sec diff

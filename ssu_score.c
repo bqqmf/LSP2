@@ -34,9 +34,9 @@ int is_ASC = 0;  // using in s option
 
 ID_node *pHEAD;  // using in p option. head of Q_nodes
 ID_node *pREAR;  // using in p option. rear of Q_nodes
-				 //ID_node *sorted_list[SNUM];  // using in s option.
-sorted_node *sHEAD;
-sorted_node *sREAR;
+				 
+sorted_node *sHEAD;  // using in s option.
+sorted_node *sREAR;  // using in s option.
 
 int eOption = false;
 int tOption = false;
@@ -224,13 +224,6 @@ int check_option(int argc, char *argv[])
 					j++;
 				}
 
-				/*
-				   if (iIDs[0][0] == 0) { // no argument with -i
-				   int size = getStudentIDs(iIDs);  // save all STUDENT_ID to iIDs 
-				   sort_2Darray(iIDs, size);
-				   }
-				 */
-
 				break;
 			case 'n':
 				nOption = true;
@@ -328,87 +321,6 @@ int check_option(int argc, char *argv[])
 	return true;
 }
 
-/* called when i option */
-/* ids : iIDs */
-/* score.csv로부터 학생들의 틀린 문제를 저장하는 연결 리스트 생성 */
-/*
-   void do_pOption(char (*ids)[10], char *target_id)
-   {
-   FILE *fp;  // fp for score.csv
-   char tmp[BUFLEN];   
-   char qname[QNUM][FILELEN];  // save i'th question name
-   char *p, *id;
-   int i, j;
-   char first, exist;
-
-   if((fp = fopen(score_csv_path, "r")) == NULL){  // open score.csv
-   fprintf(stderr, "score.csv file doesn't exist\n");  // catch exception
-   return;
-   }
-
-// get qnames
-i = 0;
-fscanf(fp, "%s\n", tmp);  // read %s from score.csv, and write to tmp. maybe ,1-1.txt,1-2.txt,...,sum
-strcpy(qname[i++], strtok(tmp, ","));  // save qname from score.csv. ex) qname[0] = 1-1.txt
-
-while((p = strtok(NULL, ",")) != NULL)  // save rest of qnames
-strcpy(qname[i++], p);
-
-// print result
-i = 0;
-while(ids[i++][0] != 0)  // num of iIDs
-{
-exist = 0;
-fseek(fp, 0, SEEK_SET);  // move offset to head
-fscanf(fp, "%s\n", tmp);  // discard first row 
-
-while(fscanf(fp, "%s\n", tmp) != EOF){  // read one line from score.csv (some students's ID and scores)
-id = strtok(tmp, ",");  // save STUDENT_ID to id
-
-// if id != target, continue;
-if (strcmp(id, target_id))
-continue;
-
-//if(!strcmp(ids[i - 1], id)){
-exist = 1;
-j = 0;
-first = 0;
-while((p = strtok(NULL, ",")) != NULL){  // p : score
-if(atof(p) == 0){
-if(!first){
-//printf("%s's wrong answer :\n", id);
-first = 1;
-
-// add to linked list
-ID_node *cur = create_id_node(id);
-add_id_node(cur);
-}
-if(strcmp(qname[j], "sum")) {
-//printf("%s    ", qname[j]);
-
-// add qnodes to ID_node
-Q_node *cur = create_q_node(qname[j], score_table[j].score);
-ID_node *parent = find_node_by_id(id);
-add_q_node(parent, cur); 
-}
-}
-j++;
-}
-//printf("\n");
-// break;  // after print wrong qnames, break;
-// 나중에 break 대신 fclose(fp), return; 으로 수정하기
-fclose(fp);
-return;
-//}
-}
-
-if(!exist)
-	printf("%s doesn't exist!\n", ids[i - 1]);
-	}
-
-fclose(fp);
-}
-	*/
 void do_mOption(char *ansDir)
 {
 	double newScore;  // save new baejum
@@ -453,23 +365,24 @@ void do_mOption(char *ansDir)
 
 }
 
+/* errorDIr 경로 출력 */
 void do_eOption()
 {
-	printf("error saved... %s\n", errorDir);
+	printf("error saved... %s\n", errorDir);  // errorDIr 경로 출력
 }
 
-
-int is_exist(char (*src)[FILELEN], char *target)
+/* src 배열에 target이 존재하는지 리턴 */
+int is_exist(char (*src)[FILELEN], char *target)  
 {
 	int i = 0;
 
 	while(1)
 	{
-		if(i >= ARGNUM)
+		if(i >= ARGNUM)  // i가 argnum보다 크거나 같으면 false
 			return false;
-		else if(!strcmp(src[i], ""))
+		else if(!strcmp(src[i], ""))  // src[i]가 NULL이면 false
 			return false;
-		else if(!strcmp(src[i++], target))
+		else if(!strcmp(src[i++], target))  // target과 이름이 같으면 true
 			return true;
 	}
 	return false;
@@ -720,13 +633,13 @@ int get_create_type()
 
 	while(1)
 	{
-		printf("score_table.csv file doesn't exist in %s/ANS !\n", currentDir);
+		printf("score_table.csv file doesn't exist in %s/ANS !\n", currentDir); 
 		printf("1. input blank question and program question's score. ex) 0.5 1\n");
 		printf("2. input all question's score. ex) Input value of 1-1: 0.1\n");
 		printf("select type >> ");
-		scanf("%d", &num);
+		scanf("%d", &num);   // type 입력
 
-		if(num != 1 && num != 2)
+		if(num != 1 && num != 2)  // 잘못된 type 입력
 			printf("not correct number!\n");
 		else
 			break;
@@ -1389,6 +1302,7 @@ int get_file_type(char *filename)
 		return -1;  					// -1 리턴
 }
 
+/* 디렉토리들 제거 */
 void rmdirs(const char *path)
 {
 	struct dirent *dirp;
@@ -1397,35 +1311,37 @@ void rmdirs(const char *path)
 	//char tmp[50]; 
 	char tmp[4096];  // path max length = 4096
 
-	if((dp = opendir(path)) == NULL)
+	if((dp = opendir(path)) == NULL)  // 열리지 않으면 리턴
 		return;
 
 	while((dirp = readdir(dp)) != NULL)
 	{
-		if(!strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))
+		if(!strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))  // .이나 ..은 패스
 			continue;
 
-		sprintf(tmp, "%s/%s", path, dirp->d_name);
+		sprintf(tmp, "%s/%s", path, dirp->d_name);  // 절대 경로 저장
 
-		if(lstat(tmp, &statbuf) == -1)
+		if(lstat(tmp, &statbuf) == -1)  // stat 에러시 continue;
 			continue;
 
-		if(S_ISDIR(statbuf.st_mode))
+		if(S_ISDIR(statbuf.st_mode))  // 디렉토리의 경우 재귀적으로 하위 요소 제거
 			rmdirs(tmp);
 		else
-			unlink(tmp);
+			unlink(tmp);  // 일반 파일 삭제
 	}
 
 	closedir(dp);
-	rmdir(path);
+	rmdir(path);  // 하위 파일들 제거 후 path 디렉토리 제거
 }
 
+/* c 문자를 소문자로 변경 */
 void to_lower_case(char *c)
 {
 	if(*c >= 'A' && *c <= 'Z')
 		*c = *c + 32;
 }
 
+/* usage 출력 */
 void print_usage()
 {
 	printf("Usage : ssu_score <STUDENTDIR> <TRUEDIR> [OPTION]\n");
@@ -1437,20 +1353,23 @@ void print_usage()
 	printf(" -h                print usage\n");
 }
 
+/* path를 절대 경로로 변경 */
 char *to_abs_path(char *path) {
 	if (path[0] == '/')  // path is already abs_path
 		return path;
 
 	char *buf = (char *) malloc(BUFLEN);
-	getcwd(buf, BUFLEN);
-	strcat(buf, "/");
-	strcat(buf, path);
+	getcwd(buf, BUFLEN);  // cwd 저장
+	strcat(buf, "/");  // '/' 붙이기
+	strcat(buf, path);  // 상대 경로 붙이기
 	return buf;
 }
 
+/* ANS, STD 디렉토리 생성 */
 void create_ANS_STD_Dir() {
 	getcwd(currentDir, BUFLEN);  // 현재 디렉토리 경로 저장
-	strcpy(ANS_Dir, currentDir);
+	// 경로 생성
+	strcpy(ANS_Dir, currentDir);  
 	strcat(ANS_Dir, "/ANS");
 	strcpy(STD_Dir, currentDir);
 	strcat(STD_Dir, "/STD");
@@ -1462,6 +1381,7 @@ void create_ANS_STD_Dir() {
 		mkdir(STD_Dir, 0755);
 }	
 
+/* 점수와 함께 출력할지 여부 리턴 */
 int print_with_score(char *id) {
 	// find id in c_opt_students
 	for (int i=0; i<ARGNUM; i++)
@@ -1487,11 +1407,12 @@ int getStudentIDs(char (*IDlist)[10]) {
 		exit(1);
 	}
 
-	while ((dirp = readdir(dir)) != NULL) {
-		if (!strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))
+	while ((dirp = readdir(dir)) != NULL) {  // stdDir 하위 파일 순회
+		if (!strcmp(dirp->d_name, ".") || !strcmp(dirp->d_name, ".."))  // .이나 ..은 continue;
 			continue;
 
-		char fullpath[BUFLEN];
+		// 절대 경로 생성
+		char fullpath[BUFLEN];  
 		memset(fullpath, 0, BUFLEN);
 		strcat(fullpath, stuDir);
 		strcat(fullpath, "/");
@@ -1501,11 +1422,11 @@ int getStudentIDs(char (*IDlist)[10]) {
 			fprintf(stderr, "lstat error for %s\n", fullpath);
 			exit(1);
 		}
-		if (S_ISDIR(statbuf.st_mode)) {
+		if (S_ISDIR(statbuf.st_mode)) {  // 학번을 IDlist에 저장
 			strcpy(IDlist[num++], dirp->d_name);
 		}
 	}
-	return num;
+	return num;  // 학생 수 저장
 }
 
 /* 학번 기준으로 id_table 정렬 */
@@ -1530,241 +1451,237 @@ void sort_2Darray(char (*arr)[10], int size)
 /* print qname(baejum) by id */
 /* id : STUDENT_ID */
 void print_pOption(char *id) {
-	ID_node *parent = find_node_by_id(id);
+	ID_node *parent = find_node_by_id(id);  // ID 학생의 ID_node 가져오기
 
 	if (parent->child == NULL) return;
 
-	Q_node *cur = parent->child;
+	Q_node *cur = parent->child;  // 첫 문제 노드 가리키기
 
 	while (cur->next != NULL) {
 		if (cur->result == 0)
-			printf("%s(%lg), ", cur->qname, cur->score);
-		cur = cur->next;
+			printf("%s(%lg), ", cur->qname, cur->score);  // 틀린 문제 출력
+		cur = cur->next;  // 다음 노드 가리키기
 	}
-	if (cur->result == 0)
+	if (cur->result == 0)  // 마지막 틀린 노드 출력
 		printf("%s(%lg)\n", cur->qname, cur->score);
 }
 
+/* ID_node 생성 후 리턴*/
 ID_node *create_id_node(char *id) {
 	ID_node *node = (ID_node *) malloc(sizeof (ID_node));
-	strcpy(node->id, id);
+	strcpy(node->id, id);  // 학번 저장
 	node->child = NULL;
 	node->next = NULL;
-	node->sorted = 0;
+	node->sorted = 0;  // 정렬 되었는지 여부 저장
 
 	return node;
 }
 
+/* ID_node를 연결 리스트에 추가 */
 void add_id_node(ID_node *new) {
-	if (pHEAD == NULL) {
+	if (pHEAD == NULL) {  // 첫 노드의 경우
 		pHEAD = new;
 		pREAR = new;
 		return;
 	}
 
-	pREAR->next = new;
-	pREAR = new;	
+	pREAR->next = new;  // 마지막 노드의 다음에 추가한다.
+	pREAR = new;  // pREAR가 새 노드를 가리킨다.
 }
 
+/* Q_node 생성 후 리턴 */
 Q_node *create_q_node(char *qname, double result, double score) {
 	Q_node *node = (Q_node *) malloc(sizeof(Q_node));
-	node->result = result;
-	node->score = score;
-	strcpy(node->qname, qname);
+	node->result = result;  // 채점 결과 저장
+	node->score = score;  // 배점 저장
+	strcpy(node->qname, qname);  // 문제 이름 저장
 	node->next = NULL;
 
 	return node;	
 }
 
+/* ID_node의 자식으로 맨 뒤에 추가 */
 void add_q_node(ID_node *parent, Q_node *new) {
-	if (parent->child == NULL) {
+	if (parent->child == NULL) {  // 첫 노드의 경우
 		parent->child = new;
 		return;
 	}
 
 	Q_node *cur = parent->child;
 
-	while (cur->next != NULL) 
-		cur = cur->next;
+	while (cur->next != NULL)  // 마지막으로 노드 이동
+		cur = cur->next;  // 다음 노드 가리키기
 
-	cur->next = new;
+	cur->next = new;  // 노드 추가
 }
 
+/* ID_node 리스트에서 id기반 노드 찾기 */
 ID_node *find_node_by_id(char *id) {
 	ID_node *cur = pHEAD;
 
 	while (cur != NULL) {
-		if (!strcmp(cur->id, id))
+		if (!strcmp(cur->id, id))  // 현재 노드의 id가 id이면 리턴
 			return cur;
-		cur = cur->next;
+		cur = cur->next;  // 다음 노드 가리키기
 	}
 
 	return NULL;
 }
 
-void free_id_node() {
-}
-
-void free_q_node(Q_node *del) {
-}
-
+/* id가 존재하는 학번인지 여부 리턴 */
 int in_iIDs(char *id) {
 	for (int i=0; i<SNUM; i++) {
-		if (!strcmp(iIDs[i], id))
+		if (!strcmp(iIDs[i], id))  // iIDs에서 id 찾기
 			return 1;
 	}
 	return 0;
 }
 
+/* id가 c옵션 STD_ID에 있는지 여부 리턴 */
 int in_c_students(char *id) {
 	for (int i=0; i<ARGNUM; i++) {
-		if (!strcmp(c_opt_students[i], id))
+		if (!strcmp(c_opt_students[i], id))  // c_opt_students에서 id 찾기
 			return 1;
 	}
 	return 0;
 }
 
+/* s 옵션 시 연결리스트 정렬 후 */
+/* 순회하며 score.csv에 쓰기 */
 void do_sOption() {
 	sort_linked_list();
-
 	iter_sorted_nodes();
-	/*
-	   int i = 0;
-	   for (int i=0; sorted_list[i] != NULL; i++) {
-	   printf("%s, %lf\n", sorted_list[i]->id, sorted_list[i]->score);
-	   }
-	 */
 }
 
+/* ID_node 연결 리스트 정렬 */
 void sort_linked_list() {
 	int i = 0;
 	ID_node *iter = pHEAD;
-	while (iter != NULL) {
+	while (iter != NULL) {  // 노드 수 만큼 순회
 		ID_node *cur = pHEAD;  // 순회에 쓰이는 노드
 		ID_node *tmp = pHEAD;  // 조건을 만족하는 노드를 가리킴
 
-		while (cur != NULL && cur->sorted)
+		while (cur != NULL && cur->sorted)  // sorted 노드 건너뛰기
 			cur = cur->next;
 		tmp = cur;  // 첫 sorted가 아닌 노드
-		if (!strcmp(category, "stdid")) {
-			if (is_ASC == 1) {
+		if (!strcmp(category, "stdid")) {  // 카테고리가 stdid이면
+			if (is_ASC == 1) {  // 오름차순
 
 				while (cur != NULL) {  // find least id node
 					if (cur->sorted) {  // sorted node 건너뛰기
-						cur = cur->next;
+						cur = cur->next;  // cur 저장
 						continue;
 					}
 
-					if (strcmp(cur->id, tmp->id) <= 0)
-						tmp = cur;
-					cur = cur->next;
+					if (strcmp(cur->id, tmp->id) <= 0)  // 현재 노드의 id가 작다면
+						tmp = cur;  // cur 저장
+					cur = cur->next;  // 다음 노드 가리키기
 				}
 
-				tmp->sorted = 1;
-				//sorted_list[i++] = tmp;
-				add_id_node2(tmp);
+				tmp->sorted = 1;  // 정렬 표시
+				add_id_node2(tmp);  // sorted_list에 추가
 			}
-			else { 
+			else {  // 내림차순
 				while (cur != NULL) {  // find least id node
 					if (cur->sorted) {  // sorted node 건너뛰기
-						cur = cur->next;
+						cur = cur->next;  // cur 저장
 						continue;
 					}
 
-					if (strcmp(cur->id, tmp->id) >= 0)
-						tmp = cur;
-					cur = cur->next;
+					if (strcmp(cur->id, tmp->id) >= 0)  // 현재 노드의 id가 크다면
+						tmp = cur;  // cur 저장
+					cur = cur->next;  // 다음 노드 가리키기
 				}
 
-				tmp->sorted = 1;
-				//sorted_list[i++] = tmp;
-				add_id_node2(tmp);
+				tmp->sorted = 1;  // 정렬 표시
+				add_id_node2(tmp);  // sorted_list에 추가
 			}
-		} else {
-			if (is_ASC == 1) {
+		} else {  // 카테고리가 score이면
+			if (is_ASC == 1) {  // 오름차순
 				while (cur != NULL) {  // find least id node
 					if (cur->sorted) {  // sorted node 건너뛰기
-						cur = cur->next;
+						cur = cur->next;  // 다음 노드 가리키기
 						continue;
 					}
 
-					if (cur->score <= tmp->score)
+					if (cur->score <= tmp->score)  // 현재 노드의 총점이 작다면
 						tmp = cur;
-					cur = cur->next;
+					cur = cur->next;  // 다음 노드 가리키기
 				}
 
-				tmp->sorted = 1;
-				//sorted_list[i++] = tmp;
-				add_id_node2(tmp);
+				tmp->sorted = 1;  // 정렬 표시
+				add_id_node2(tmp);  // sorted_list에 추가
 			}
-			else {
+			else {  // 내림차순
 				while (cur != NULL) {  // find least id node
 					if (cur->sorted) {  // sorted node 건너뛰기
-						cur = cur->next;
+						cur = cur->next;  // 다음 노드 가리키기
 						continue;
 					}
 
-					if (cur->score >= tmp->score)
+					if (cur->score >= tmp->score)  // 현재 노드의 총점이 크다면
 						tmp = cur;
-					cur = cur->next;
+					cur = cur->next;  // 다음 노드 가리키기
 				}
 
-				tmp->sorted = 1;
-				//sorted_list[i++] = tmp;
-				add_id_node2(tmp);
+				tmp->sorted = 1;  // 정렬 표시
+				add_id_node2(tmp);  // sorted_list에 추가
 			}
 		}
-		iter = iter->next;
+		iter = iter->next;  // 다음 노드 가리키기
 	}
 }
 
+/* sorted_list에 노드 추가 */
 void add_id_node2(ID_node *new) {
-	sorted_node *cur = (sorted_node *) malloc(sizeof(sorted_node));
-	cur->child = new;
-	if (sHEAD == NULL) {
+	sorted_node *cur = (sorted_node *) malloc(sizeof(sorted_node));  // new를 가리키는 노드 생성
+	cur->child = new;  // cur의 자식으로 new 가리키기
+	if (sHEAD == NULL) {  // 첫 노드이면
 		sHEAD = cur;
 		sREAR = cur;
 		cur->next = NULL;
 		return;
 	}
 
-	sREAR->next = cur;
-	sREAR = cur;	
+	sREAR->next = cur;  // sREAR의 다음 노드로 cur 추가
+	sREAR = cur;  // cur을 sREAR이 가리킴
 }
 
+/* 정렬된 sorted_list 순회하며 score.csv 작성 */
 void iter_sorted_nodes() {
 	sorted_node *cur = sHEAD;
 
+	// score.csv 다시 열기
 	int fd;
 	if ((fd = open(score_csv_path, O_CREAT | O_WRONLY | O_TRUNC, 0666)) < 0) {
 		fprintf(stderr, "open error for %s\n", score_csv_path);
 		exit(1);
 	}
 
-	char tmp[BUFLEN];
+	char tmp[BUFLEN];  // 학번 저장용 tmp
 
 	write_first_row(fd);  // score.csv에 첫번째 행 추가. 문제 번호들과 합계가 적힘
 
 	while (cur != NULL) {
-		//printf("%s, %lf\n", cur->child->id, cur->child->score);
-		memset(tmp, 0, BUFLEN);
-		sprintf(tmp, "%s,", cur->child->id);  
+		memset(tmp, 0, BUFLEN);  // tmp 초기화
+		sprintf(tmp, "%s,", cur->child->id);  // 학번, 저장
 		write(fd, tmp, strlen(tmp));  // score.csv에 "학번," 쓰기
-		rewrite_score_csv(fd, cur->child);
-		cur = cur->next;
+		rewrite_score_csv(fd, cur->child);  // 문제 채점 결과를 쓰기
+		cur = cur->next;  // 다음 노드 가리키기
 	}
-	close(fd);
+	close(fd);  // close file
 }
 
+/* parent가 가진 q_node들의 내용을 score.csv에 쓰기 */
 void rewrite_score_csv(int fd, ID_node *parent) {
 	Q_node *cur = parent->child;
 
-	char tmp[BUFLEN];
+	char tmp[BUFLEN];  // 점수 저장용 배열
 
 	while (cur != NULL) {
-		sprintf(tmp, "%.2f,", cur->result);  
-		write(fd, tmp, strlen(tmp));
-		cur = cur->next;
+		sprintf(tmp, "%.2f,", cur->result);  // 점수, 저장
+		write(fd, tmp, strlen(tmp));  // score.csv에 점수 쓰기
+		cur = cur->next;  // 다음 노드 가리키기
 	}
 	sprintf(tmp, "%.2f\n", parent->score);  // tmp에 문자열로 총점 저장
 	write(fd, tmp, strlen(tmp));  // 총점 score.csv에 쓰기

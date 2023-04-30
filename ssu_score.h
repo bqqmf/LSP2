@@ -123,8 +123,6 @@ void add_id_node(ID_node *new);  // add node
 Q_node *create_q_node(char *qname, double result, double score);
 void add_q_node(ID_node *parent, Q_node *new);
 ID_node *find_node_by_id(char *id);
-void free_id_node();
-void free_q_node(Q_node *del);
 int in_iIDs(char *id);
 int in_c_students(char *id);
 void do_sOption();
