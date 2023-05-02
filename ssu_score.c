@@ -69,7 +69,7 @@ void ssu_score(int argc, char *argv[])
 	if (snprintf(score_table_path, sizeof(score_table_path), "%s/score_table.csv", ANS_Dir) > sizeof(score_table_path))  // ./ANS/score_table.csv
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 
-	if (snprintf(score_csv_path, sizeof(score_csv_path), "%s/score.csv", saved_path) > sizeof(score_csv_path))  // ./ANS/score.csv
+	if (snprintf(score_csv_path, sizeof(score_csv_path), "%s/score.csv", ANS_Dir) > sizeof(score_csv_path))  // ./ANS/score.csv
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 
 	// -i option 없이 ./ssu_score student_dir answer_dir 실행 시
