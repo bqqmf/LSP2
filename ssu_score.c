@@ -353,11 +353,13 @@ void do_mOption(char *ansDir)
 		}
 	}
 	// save ./score_table.csv
+	/*
 	if (snprintf(filename, sizeof(filename), "./%s", score_table_path) >= sizeof(filename))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
+   */
 	// score_table not exists exception	
-	if (access(filename, F_OK) < 0) {
-		fprintf(stderr, "file doesn't exists %s\n", filename);
+	if (access(score_table_path, F_OK) < 0) {
+		fprintf(stderr, "file doesn't exists %s\n", score_table_path);
 		exit(1);
 	}
 	write_scoreTable(filename);  // modify score_table.csv 
@@ -761,12 +763,18 @@ double score_student(int fd, char *id)
 			printf("%s is finished.. score : %.2f\n", id, score);  // id 학생의 총점 출력
 		}
 		else {
-			printf("%s is finished..", id);  // grading complete 
+			printf("%s is finished..\n", id);  // grading complete 
 		}
 	} else if (pOption) {
-		printf("%s is finished.. wrong problem : ", id);  // id 학생의 총점 출력
-														  // print linked list
-		print_pOption(id);
+		printf("%s is finished..", id);  // id 학생의 총점 출력
+
+		if (in_iIDs(id)) {	  // print linked list
+			printf(" wrong problem :"); 
+			print_pOption(id);
+		}
+		else {
+			printf("\n");
+		}
 	} else
 		printf("%s is finished..\n", id);  // grading complete 
 
