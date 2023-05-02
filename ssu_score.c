@@ -95,16 +95,6 @@ void ssu_score(int argc, char *argv[])
 	}
 
 
-	// m, e, t 옵션 말고 i 옵션만 사용하고 학생, 정답 디렉토리가 입력된 경우
-	/*
-	   if(!mOption && !eOption && !tOption && iOption 
-	   && !strcmp(stuDir, "") && !strcmp(ansDir, "")){
-	   do_pOption(iIDs);  // i 옵션 실행하고 종료
-	   return;
-	   }
-	 */
-
-
 	// 학생 디렉토리로 디렉토리 변경
 	if(chdir(stuDir) < 0){
 		fprintf(stderr, "%s doesn't exist\n", stuDir);  // stuDir이 존재하지 않는다면 에러 출력 후 종료
@@ -308,8 +298,6 @@ int check_option(int argc, char *argv[])
 
 				if (!strcmp(argv[i+1], "1")) is_ASC = 1;
 				else if (!strcmp(argv[i+1], "-1")) is_ASC = -1;
-
-				printf("%s, %d\n", category, is_ASC);
 
 				break;
 			case '?':
@@ -1182,6 +1170,10 @@ int execute_program(char *id, char *filename)
 	if (snprintf(tmp, sizeof(tmp), "%s/%s/%s.stdexe &", STD_Dir, id, qname) >= sizeof(tmp)) 
 		fprintf(stderr, "buffer overflow - string is truncated\n");
 
+	struct stat sb;
+	if (lstat(tmp, &sb) < 0) {
+		return false;
+	}
 	start = time(NULL);  // 실행 시작 시간 저장
 	redirection(tmp, fd, STDOUT);  // 학생의 실행 프로그램 실행 결과를 qname.stdout에 저장
 
