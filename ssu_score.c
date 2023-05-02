@@ -677,7 +677,8 @@ void score_students()
 		score += score_student(fd, id_table[num]);  // 학생의 점수를 계산하여 score.csv에 쓰고 점수 누적
 	}
 
-	printf("Total average : %.2f\n", score / num);  // 학생들이 평균 출력
+	if (cOption)
+		printf("Total average : %.2f\n", score / num);  // 학생들이 평균 출력
 
 	close(fd);  // score.csv 닫기
 }
@@ -1034,7 +1035,7 @@ double compile_program(char *id, char *filename)
 	// tmp_e에 qname_error.txt 저장
 	if (snprintf(tmp_e, sizeof(tmp_e), "%s/%s_error.txt", ANS_Dir, qname) >= sizeof(tmp_e))
 		fprintf(stderr, "buffer overflow - string is truncated\n");
-	fd = creat(tmp_e, 0666);  // ANS_DIR 아래에 20_error.txt 생성. 나중에 ANS 밑에 들어가게 바꾸기
+	fd = creat(tmp_e, 0666);  // ANS_DIR 아래에 20_error.txt 생성. 
 
 	// ansDir/qname.exe 생성, command의 표준에러를 error.txt에 출력
 	redirection(command, fd, STDERR);
@@ -1066,11 +1067,6 @@ double compile_program(char *id, char *filename)
 			fprintf(stderr, "buffer overflow - string is truncated\n");
 
 
-	// tmp_f에 id 학생의 qname_error.txt 저장
-	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s/%s_error.txt", STD_Dir, id, qname) >= sizeof(tmp_f))
-		fprintf(stderr, "buffer overflow - string is truncated\n");
-	fd = creat(tmp_f, 0666);  // stuDir/id/qname_error.txt 저장
-
 	// save STD_Dir/id
 	char STD_ID_Dir[BUFLEN];
 	if (snprintf(STD_ID_Dir, sizeof(STD_ID_Dir), "%s/%s", STD_Dir, id) >= sizeof(STD_ID_Dir))
@@ -1078,6 +1074,11 @@ double compile_program(char *id, char *filename)
 
 	if(access(STD_ID_Dir, F_OK) < 0)  // ./STD/id not exists, mkdir
 		mkdir(STD_ID_Dir, 0755);
+
+	// tmp_f에 id 학생의 qname_error.txt 저장
+	if (snprintf(tmp_f, sizeof(tmp_f), "%s/%s/%s_error.txt", STD_Dir, id, qname) >= sizeof(tmp_f))
+		fprintf(stderr, "buffer overflow - string is truncated\n");
+	fd = creat(tmp_f, 0666);  // stuDir/id/qname_error.txt 저장
 
 	redirection(command, fd, STDERR);  // command의 표준 에러를 error.txt에 출력
 	size = lseek(fd, 0, SEEK_END);  // error.txt 파일 크기 저장
