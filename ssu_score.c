@@ -340,11 +340,6 @@ void do_mOption(char *ansDir)
 			}
 		}
 	}
-	// save ./score_table.csv
-	/*
-	if (snprintf(filename, sizeof(filename), "./%s", score_table_path) >= sizeof(filename))
-		fprintf(stderr, "buffer overflow - string is truncated\n");
-   */
 	// score_table not exists exception	
 	if (access(score_table_path, F_OK) < 0) {
 		fprintf(stderr, "file doesn't exists %s\n", score_table_path);
